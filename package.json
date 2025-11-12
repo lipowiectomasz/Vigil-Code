@@ -1,36 +1,36 @@
 {
   "name": "vigil-code",
   "version": "2.0.0",
-  "description": "Master-Agent Architecture Framework for Intelligent Task Orchestration",
-  "main": "index.js",
-  "type": "module",
+  "description": "Autonomous Multi-Agent System for Software Development - Extracted from Vigil Guard",
+  "main": ".claude/agents/vg-master-orchestrator/orchestrator.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "validate": "node scripts/validate-agents.js",
-    "list-agents": "node scripts/list-agents.js",
-    "docs": "node scripts/generate-docs.js"
+    "test": "node .claude/agents/vg-test-automation/agent.js",
+    "demo": "node .claude/agents/vg-master-orchestrator/demo.js",
+    "status": "node .claude/agents/vg-master-orchestrator/init.js"
   },
   "keywords": [
-    "agent-architecture",
+    "autonomous-agents",
+    "multi-agent-system",
     "orchestration",
-    "multi-agent",
     "workflow",
-    "automation",
-    "claude",
-    "vigil-guard"
+    "task-automation",
+    "claude-code",
+    "development-tools"
   ],
-  "author": "Vigil Guard Team",
+  "author": "Tomasz Bartel <tomasz.bartel@example.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/vigil-code.git"
+    "url": "https://github.com/your-username/vigil-code.git"
   },
+  "bugs": {
+    "url": "https://github.com/your-username/vigil-code/issues"
+  },
+  "homepage": "https://github.com/your-username/vigil-code#readme",
   "engines": {
     "node": ">=18.0.0"
   },
-  "devDependencies": {
-    "ajv": "^8.12.0",
-    "chalk": "^5.3.0",
-    "glob": "^10.3.10"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }
