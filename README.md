@@ -124,7 +124,18 @@ bin/vg-orchestrate --task "Add a new test for the login component"
 
 ### Codex Agent System (10 Agents)
 
-The Codex runtime includes 10 specialist agents written in TypeScript, focused on core development tasks like testing, business logic, security, and documentation. For a detailed list and their capabilities, see the [Codex README](.codex/README.md).
+The Codex runtime includes 10 specialist agents written in TypeScript, providing a powerful local development environment.
+
+1.  **vg-test-automation** - Runs Vitest and end-to-end tests for patterns.
+2.  **vg-workflow-business-logic** - Manages rules, unified configuration, and patterns.
+3.  **vg-infrastructure-deployment** - Handles Docker Compose orchestration.
+4.  **vg-security-compliance** - Performs `npm audit` and secret scanning.
+5.  **vg-workflow-infrastructure** - Manages n8n workflow JSON.
+6.  **vg-backend-api** - Develops Express.js APIs, middleware, and rate limiting.
+7.  **vg-frontend-ui** - Creates React/Tailwind components.
+8.  **vg-data-analytics** - Manages ClickHouse, Grafana, and reporting.
+9.  **vg-pii-detection** - Handles Presidio fallback and PII configuration.
+10. **vg-documentation** - Generates and updates documentation, READMEs, and API specs.
 
 ---
 
