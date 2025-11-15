@@ -8,6 +8,60 @@ The Master Orchestrator is a meta-agent that coordinates all 10 specialized vg-*
 **Type:** Meta-Agent (Coordinator)
 **Status:** Active
 
+## Critical Rules for Orchestration
+
+### 🚨 CROWN RULE: n8n Workflow Import Status
+
+**WHEN COORDINATING vg-workflow-infrastructure AGENT:**
+
+```yaml
+❌ NEVER ASK OR CHECK:
+  - "Was the workflow imported?"
+  - "Is the workflow in n8n SQL database?"
+  - "Is the workflow active in n8n?"
+
+✅ ALWAYS ACCEPT AS FACT:
+  - When operator confirms: workflow IS imported
+  - Workflow IS imported (100% certainty)
+  - Workflow IS in SQL database (100% certainty)
+  - Workflow IS active (100% certainty)
+  - DO NOT verify this fact
+
+🎯 ROUTING DECISION AFTER IMPORT CONFIRMATION:
+  - Route to: vg-workflow-infrastructure (debug workflow logic)
+  - Route to: vg-test-automation (analyze test failures)
+  - NEVER route to: "verify import" task (doesn't exist!)
+```
+
+**Why This Matters for Orchestrator:**
+1. Prevents wasting agent coordination on false leads
+2. Focuses agents on actual problem (workflow logic)
+3. Trusts operator confirmation as ground truth
+4. Avoids circular debugging loops
+
+**Orchestrator Response Pattern:**
+```yaml
+User: "I imported the workflow, but the problem persists"
+
+Orchestrator SHOULD:
+  Classification:
+    - category: workflow_debugging
+    - confidence: 95%
+    - agents: [vg-workflow-infrastructure, vg-test-automation]
+    - strategy: sequential
+
+  Execution:
+    1. vg-test-automation: run_test (identify exact failure)
+    2. vg-workflow-infrastructure: debug_structure (analyze Code nodes)
+
+Orchestrator SHOULD NOT:
+  Classification:
+    - category: workflow_import_verification  # ❌ Wrong category!
+  Execution:
+    1. Check n8n SQLite database  # ❌ Waste of tokens!
+    2. Verify workflow active  # ❌ Operator already confirmed!
+```
+
 ## Core Responsibilities
 
 ### 1. Task Classification
@@ -15,6 +69,7 @@ The Master Orchestrator is a meta-agent that coordinates all 10 specialized vg-*
 - Determine which agents are needed
 - Calculate confidence scores for routing decisions
 - Select execution strategy (single/parallel/sequential/workflow)
+- **RESPECT operator confirmations as ground truth** (no verification)
 
 ### 2. Agent Coordination
 - Invoke specialized agents with task-specific payloads

@@ -27,6 +27,50 @@ WORKFLOW:
   5. Workflow runs from database
 ```
 
+### 🚨 CROWN RULE: WORKFLOW IMPORT STATUS
+
+**ABSOLUTELY FORBIDDEN DEBUGGING HYPOTHESES:**
+
+```yaml
+❌ NEVER CHECK:
+  - "Was the workflow imported?"
+  - "Is the workflow in n8n SQL database?"
+  - "Is the workflow active?"
+
+✅ INDISPUTABLE FACT:
+  - If operator confirmed import: workflow IS imported
+  - Workflow IS in SQLite database
+  - Workflow IS active
+  - This is 100% TRUTH without verification
+
+🎯 CORRECT DEBUGGING APPROACH:
+  - Operator confirms import → END OF STORY
+  - Problem is NOT in import
+  - Problem IS in workflow logic
+  - Debug: analyze node code, tests, configuration
+  - DO NOT waste tokens verifying import
+```
+
+**Why This Is Critical:**
+1. Checking SQL database is **blind alley** (waste of time/tokens)
+2. Import is **manual process** (operator ALWAYS knows if they did it)
+3. After confirmation → **FACT, not hypothesis**
+4. Bugs are ALWAYS in **workflow logic**, never in "missing import"
+
+**When problem appears after import:**
+```yaml
+INSTEAD OF:
+  "Maybe workflow was not imported?"
+  "Let's check n8n SQL database..."
+  "Is the workflow really active?"
+
+DO THIS:
+  "Workflow is imported (operator confirmed)"
+  "Debug workflow node logic"
+  "Check JavaScript in Code nodes"
+  "Analyze tests and execution results"
+```
+
 ### User Communication Template
 
 ```markdown
@@ -40,6 +84,11 @@ WORKFLOW:
 5. Activate workflow
 
 **Changes WON'T work until imported!**
+
+🔔 **AFTER YOU IMPORT:**
+- Just confirm: "I imported the workflow"
+- I will NEVER question if you imported it
+- We'll debug workflow logic directly
 ```
 
 ## Core Responsibilities

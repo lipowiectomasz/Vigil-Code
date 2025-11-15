@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the Vigil Guard repository.
 
-## 🚫 KORONNĄ ZASADA #1: n8n WORKFLOW CHANGES NEVER REQUIRE RESTART
+## 🚫 CROWN RULE #1: n8n WORKFLOW CHANGES NEVER REQUIRE RESTART
 
 **CRITICAL ARCHITECTURE UNDERSTANDING:**
 
@@ -20,10 +20,52 @@ n8n is a **multi-tenant platform** where workflows are **independent from the n8
 3. n8n instance restart does NOT affect config loading
 4. Suggesting restart wastes time and tokens on blind alleys
 
-**When User Says "Zaimportowałem workflow":**
-- ✅ **BELIEVE THEM** - workflow IS imported
-- ✅ **Move to next phase** (testing, verification)
-- ❌ **DO NOT ask to reimport again** - it's a time waste
+### 🚨 CROWN RULE #1A: OPERATOR WORKFLOW IMPORT CONFIRMATION IS ABSOLUTE TRUTH
+
+**WHEN OPERATOR CONFIRMS WORKFLOW IMPORT:**
+
+```yaml
+❌ ABSOLUTELY FORBIDDEN HYPOTHESES:
+  - "Was the workflow REALLY imported?"
+  - "Let's check the n8n SQLite database..."
+  - "Maybe the workflow is not active?"
+  - "Are you sure you clicked import?"
+
+✅ INDISPUTABLE FACT (100% CERTAINTY):
+  - Workflow IS imported to n8n
+  - Workflow IS in SQLite database
+  - Workflow IS active
+  - Import is MANUAL process - operator KNOWS they did it
+  - DO NOT verify this fact - it wastes tokens
+
+🎯 CORRECT ACTION AFTER IMPORT CONFIRMATION:
+  - BELIEVE THEM - workflow IS imported (end of story)
+  - Move to next phase: debugging workflow LOGIC
+  - Analyze Code nodes JavaScript
+  - Check test results and failures
+  - Review configuration files
+  - NEVER question import status again
+```
+
+**Why This Is Critical:**
+1. Import is **manual GUI operation** - operator has 100% certainty
+2. Checking SQLite database is **waste of time and tokens** (blind alley)
+3. After import confirmation → **FACT, not hypothesis** to verify
+4. Bugs are **ALWAYS in workflow logic**, never in "missing import"
+
+**Debugging After Import Confirmation:**
+```yaml
+INSTEAD OF:
+  "Maybe the workflow was not imported?"
+  "Let's check the n8n SQL database..."
+  "Is the workflow active in n8n GUI?"
+
+DO THIS:
+  "Workflow is imported (operator confirmed)"
+  "Debug Code nodes logic"
+  "Analyze tests and their results"
+  "Check configuration and input data"
+```
 
 **Valid Reasons to Restart n8n (RARE):**
 - n8n process crashed or frozen
@@ -38,7 +80,7 @@ n8n is a **multi-tenant platform** where workflows are **independent from the n8
 
 ---
 
-## 🚫 KORONNĄ ZASADA #2: NO AI ATTRIBUTION IN COMMITS
+## 🚫 CROWN RULE #2: NO AI ATTRIBUTION IN COMMITS
 
 **ABSOLUTELY FORBIDDEN in git commits:**
 
