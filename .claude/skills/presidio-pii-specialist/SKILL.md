@@ -34,7 +34,7 @@ Microsoft Presidio PII detection API in Vigil Guard - Python Flask service provi
 4. Return entities with scores
 ```
 
-### Parallel Detection (v1.6.10+)
+### Parallel Detection (v1.8.1+)
 ```javascript
 // From n8n PII_Redactor_v2 node
 const [plResults, enResults] = await Promise.all([

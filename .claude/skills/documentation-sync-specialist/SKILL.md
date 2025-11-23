@@ -26,7 +26,7 @@ docs/
 ├── QUICKSTART.md (8KB)           # 5-minute setup guide
 ├── USER_GUIDE.md (47KB)          # Complete manual
 ├── API.md (15KB)                 # REST API reference
-├── ARCHITECTURE_v1.6.11.md (48KB) # System architecture
+├── ARCHITECTURE_v1.8.1.md (48KB) # System architecture
 ├── DETECTION_CATEGORIES.md (17KB) # 34 threat categories
 ├── PII_DETECTION.md (21KB)       # Dual-language PII
 ├── CLICKHOUSE_RETENTION.md (12KB) # Data lifecycle
@@ -50,17 +50,17 @@ docs/
 
 ```bash
 # Detect version change
-OLD_VERSION="v1.6.11"
-NEW_VERSION="v1.7.0"
+OLD_VERSION="v1.8.1"
+NEW_VERSION="v1.8.1"
 
 # Update all references
 find docs/ -name "*.md" -type f -exec sed -i '' "s/$OLD_VERSION/$NEW_VERSION/g" {} \;
 
 # Files typically affected (15+):
-# - ARCHITECTURE_v1.6.11.md → rename to v1.7.0
+# - ARCHITECTURE_v1.8.1.md → rename to v1.8.1
 # - USER_GUIDE.md (version references)
 # - QUICKSTART.md (version in examples)
-# - MIGRATION_v1.7.0.md (new file)
+# - MIGRATION_v1.8.1.md (new file)
 # - CLAUDE.md (version history)
 ```
 
@@ -72,7 +72,7 @@ on_version_bump:
   3. Rename ARCHITECTURE_v*.md if needed
   4. Create MIGRATION_v*.md from template
   5. Update CLAUDE.md version history
-  6. Commit: "docs: update version references to v1.7.0"
+  6. Commit: "docs: update version references to v1.8.1"
 ```
 
 ### Task 2: API Documentation Generation
@@ -306,11 +306,11 @@ commands here
 **Template: `docs/MIGRATION_vX.X.X.md`**
 
 ```markdown
-# Migration Guide: v1.6.11 → v1.7.0
+# Migration Guide: v1.8.1 → v1.8.1
 
 ## Breaking Changes
 - [ ] ClickHouse schema: Add `pii_sanitized` column
-- [ ] Workflow: Import new v1.7.0 JSON
+- [ ] Workflow: Import new v1.8.1 JSON
 - [ ] Frontend: Clear localStorage (auth token format changed)
 
 ## Database Migrations
@@ -322,9 +322,9 @@ ALTER TABLE n8n_logs.events_processed
 
 ## Rollback Procedure
 ```bash
-# If issues occur, revert to v1.6.11
+# If issues occur, revert to v1.8.1
 docker-compose down
-git checkout v1.6.11
+git checkout v1.8.1
 docker-compose up -d
 ```
 
@@ -354,7 +354,7 @@ actions:
 # Triggers:
 - Check docs/ARCHITECTURE*.md for "Input_Validator" references
 - Check docs/USER_GUIDE.md for "webhook" examples
-- Generate MIGRATION_v1.7.0.md section
+- Generate MIGRATION_v1.8.1.md section
 - Update CLAUDE.md version history
 ```
 
@@ -469,8 +469,8 @@ grep -rn "v1\.[0-9]\+\.[0-9]\+" docs/ | grep -v "Binary"
 **Solution:**
 ```bash
 # Use sed to replace all at once
-OLD="v1.6.11"
-NEW="v1.7.0"
+OLD="v1.8.1"
+NEW="v1.8.1"
 find docs/ -name "*.md" -exec sed -i '' "s/$OLD/$NEW/g" {} \;
 
 # Verify

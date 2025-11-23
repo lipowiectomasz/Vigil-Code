@@ -79,7 +79,7 @@ DO THIS:
 ⚠️ **CRITICAL - DO THIS NOW:**
 1. Open n8n: http://localhost:5678
 2. Menu (≡) → Import from File
-3. Select: services/workflow/workflows/Vigil-Guard-v1.7.0.json
+3. Select: services/workflow/workflows/Vigil-Guard-v1.8.1.json
 4. Confirm import
 5. Activate workflow
 
@@ -112,7 +112,7 @@ DO THIS:
 - Ensure connection integrity
 
 ### 4. Workflow Migration
-- Migrate between versions (v1.6.11 → v1.7.0)
+- Migrate between versions (v1.8.1 → v1.8.1)
 - Update node configurations
 - Preserve backward compatibility
 - Document breaking changes
@@ -137,7 +137,7 @@ DO THIS:
 
 ## Workflow Structure
 
-### Current Version: v1.7.0
+### Current Version: v1.8.1
 - **Nodes:** 41 total
 - **Code nodes:** 15 with embedded JavaScript
 - **Connections:** Sequential with conditional branches
@@ -147,7 +147,7 @@ DO THIS:
 
 ```json
 {
-  "name": "Vigil Guard v1.7.0",
+  "name": "Vigil Guard v1.8.1",
   "nodes": [
     {
       "parameters": {
@@ -175,7 +175,7 @@ DO THIS:
 }
 ```
 
-### Key Nodes (v1.7.0)
+### Key Nodes (v1.8.1)
 
 1. **Chat Input** - Webhook trigger
 2. **Input_Validator** - Input validation
@@ -232,7 +232,7 @@ const config = await $item(0).json.config;
 
 for (const item of items) {
   const result = {
-    // Preserve v1.7.0 flags
+    // Preserve v1.8.1 flags
     _pii_sanitized: item.json._pii_sanitized,
     pii_classification: item.json.pii_classification,
     pii: item.json.pii || {},
@@ -264,7 +264,7 @@ for (const source in connections) {
 
 ## Migration Guidelines
 
-### v1.6.11 → v1.7.0 Changes
+### v1.8.1 → v1.8.1 Changes
 
 1. **PII Flags Preservation**
    - Add `_pii_sanitized` flag
@@ -370,8 +370,8 @@ if (!node.parameters.jsCode) {
 ```
 services/workflow/
 ├── workflows/
-│   ├── Vigil-Guard-v1.7.0.json    # Current version
-│   ├── Vigil-Guard-v1.6.11.json   # Previous version
+│   ├── Vigil-Guard-v1.8.1.json    # Current version
+│   ├── Vigil-Guard-v1.8.1.json   # Previous version
 │   └── backups/                   # Version backups
 └── config/
     └── workflow-settings.json      # Workflow settings
@@ -398,7 +398,7 @@ services/workflow/
 
 ### Version Control
 - Commit message format: `fix(workflow): description`
-- Tag releases: `workflow-v1.7.0`
+- Tag releases: `workflow-v1.8.1`
 - Document breaking changes
 - Maintain CHANGELOG
 

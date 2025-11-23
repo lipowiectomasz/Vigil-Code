@@ -22,7 +22,7 @@ Hybrid language detection algorithm for Vigil Guard combining entity-based hints
 - langdetect 1.0.9 (statistical analysis)
 - Custom Polish entity patterns (PESEL, NIP, REGON)
 
-## Hybrid Detection Algorithm (v1.6.11)
+## Hybrid Detection Algorithm (v1.8.1)
 
 ### Decision Flow
 ```yaml
@@ -299,5 +299,5 @@ curl http://localhost:5002/health
 
 ---
 **Performance:** <10ms average detection time
-**Accuracy:** 100% (50/50 tests passing, v1.6.11)
+**Accuracy:** 100% (50/50 tests passing, v1.8.1)
 **Languages Supported:** 55+ via langdetect, Polish priority

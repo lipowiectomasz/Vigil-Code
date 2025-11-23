@@ -1,6 +1,6 @@
 ---
 name: docker-vigil-orchestration
-description: Docker Compose orchestration for Vigil Guard microservices (9 services). Use when deploying services, managing containers, troubleshooting Docker network issues, working with vigil-net, configuring docker-compose.yml, handling service dependencies, or working with new services (presidio-pii-api v1.6.11, language-detector v1.0.1).
+description: Docker Compose orchestration for Vigil Guard microservices (9 services). Use when deploying services, managing containers, troubleshooting Docker network issues, working with vigil-net, configuring docker-compose.yml, handling service dependencies, or working with new services (presidio-pii-api v1.8.1, language-detector v1.0.1).
 version: 1.6.11
 allowed-tools: [Read, Write, Bash, Grep, Glob]
 ---

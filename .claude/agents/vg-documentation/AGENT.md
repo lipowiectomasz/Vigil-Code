@@ -116,7 +116,7 @@ git commit -m "feat(pii): add Polish PESEL detection
 Closes #123"
 
 # Fix commit
-git commit -m "fix(workflow): preserve PII flags in v1.7.0
+git commit -m "fix(workflow): preserve PII flags in v1.8.1
 
 - Add _pii_sanitized flag propagation
 - Fix Final_Decision node

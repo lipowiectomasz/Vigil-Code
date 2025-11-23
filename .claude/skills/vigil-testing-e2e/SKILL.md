@@ -24,7 +24,7 @@ Comprehensive testing framework for Vigil Guard using Vitest, with 100+ tests co
 
 ## Test Suite Architecture
 
-### Current Status (v1.6.11: 100+ Tests)
+### Current Status (v1.8.1: 100+ Tests)
 ```bash
 cd services/workflow
 npm test
@@ -34,7 +34,7 @@ npm test
 ✅ False Positives: 15/15 (100%)
 ⚠️  Bypass Scenarios: 15/29 (52%)
 ✅ Emoji Obfuscation: 28/28 (100%)
-✅ Language Detection: 50/50 (100%) [NEW v1.6.11]
+✅ Language Detection: 50/50 (100%) [NEW v1.8.1]
 ✅ PII Detection Comprehensive: 24/24 (100%)
 ✅ OWASP AITG: 194 payloads tested
 ✅ Phase 2.5 Audit: 12/12 (100%)
@@ -48,7 +48,7 @@ Overall Pass Rate: ~85%
 3. **emoji-obfuscation.test.js** (28 tests) - Emoji-based attacks
 4. **false-positives.test.js** (15 tests) - Legitimate content
 5. **input-validation.test.js** - Input edge cases
-6. **language-detection.test.js** (50 tests) - **NEW v1.6.11**: Hybrid language detection
+6. **language-detection.test.js** (50 tests) - **NEW v1.8.1**: Hybrid language detection
 7. **pii-detection-comprehensive.test.js** (24 tests) - Dual-language PII (Polish + English)
 8. **pii-detection-presidio.test.js** - Presidio API integration
 9. **pii-detection-fallback.test.js** - Fallback to regex patterns
@@ -244,7 +244,7 @@ cd services/workflow
 npm test || exit 1
 ```
 
-## Language Detection Testing (NEW v1.6.11)
+## Language Detection Testing (NEW v1.8.1)
 
 ### Overview
 Comprehensive test suite for hybrid language detection algorithm (entity-based hints + statistical fallback).

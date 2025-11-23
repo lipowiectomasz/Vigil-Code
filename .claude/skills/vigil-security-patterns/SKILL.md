@@ -79,7 +79,7 @@ Granular permissions with last admin protection to prevent lockout.
 
 OWASP Top 10 coverage with mitigations for broken access control, cryptographic failures, and injection attacks.
 
-## Recent Security Fixes (v1.6.11 - Phase 3-4 Audit)
+## Recent Security Fixes (v1.8.1 - Phase 3-4 Audit)
 
 ### Phase 2.1: Rate Limiting Implementation
 

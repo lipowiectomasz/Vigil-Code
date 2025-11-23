@@ -61,13 +61,13 @@ config:       Configuration files
 
 **Feature:**
 ```bash
-git commit -m "feat(workflow): add browser fingerprinting to v1.7.0
+git commit -m "feat(workflow): add browser fingerprinting to v1.8.1
 
 - Add clientId extraction to Input_Validator
 - Add browser_metadata to ClickHouse logging
 - Update PII_Redactor_v2 with classification flags
 
-BREAKING: Requires ClickHouse schema migration (see docs/MIGRATION_v1.7.0.md)
+BREAKING: Requires ClickHouse schema migration (see docs/MIGRATION_v1.8.1.md)
 "
 ```
 
@@ -260,7 +260,7 @@ fi
 
 **Usage:**
 ```bash
-./scripts/generate-changelog.sh v1.7.0 > CHANGELOG.md
+./scripts/generate-changelog.sh v1.8.1 > CHANGELOG.md
 ```
 
 ### Task 4: Commit Message Validation (Git Hook)
@@ -369,7 +369,7 @@ cp scripts/commit-msg.sh .git/hooks/commit-msg
 chmod +x .git/hooks/commit-msg
 
 # Generate CHANGELOG
-./scripts/generate-changelog.sh v1.7.0 > CHANGELOG.md
+./scripts/generate-changelog.sh v1.8.1 > CHANGELOG.md
 
 # Smart commit
 ./scripts/smart-commit.sh

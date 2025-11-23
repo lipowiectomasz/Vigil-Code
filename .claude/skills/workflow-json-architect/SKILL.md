@@ -15,7 +15,7 @@ Expert guidance for managing n8n workflow JSON files (1166+ lines, 41 nodes) in 
 - Adding/removing/reordering nodes
 - Editing Code node embedded JavaScript (500+ lines per node)
 - Managing node connections and data flow
-- Migrating workflows between versions (v1.6.11 → v1.7.0 → v1.7.x)
+- Migrating workflows between versions (v1.8.1 → v1.8.1 → v1.7.x)
 - Debugging workflow execution errors
 - Understanding n8n JSON schema
 - **Explaining to user: "Import workflow to n8n GUI NOW!"**
@@ -63,7 +63,7 @@ WORKFLOW:
 
 1. Open n8n GUI: http://localhost:5678
 2. Click menu (≡) → **Import from File**
-3. Select: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
+3. Select: `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
 4. Confirm import
 5. Activate workflow (toggle switch)
 
@@ -72,13 +72,75 @@ WORKFLOW:
 After importing, test with: n8n GUI → Test workflow → Chat tab
 ```
 
+### 🚨 CROWN RULE: WORKFLOW IMPORT STATUS - OPERATOR TRUST AXIOM
+
+**ABSOLUTELY FORBIDDEN DEBUGGING HYPOTHESES:**
+
+```yaml
+❌ NEVER CHECK:
+  - "Was the workflow imported?"
+  - "Is the workflow in n8n SQL database?"
+  - "Is the workflow active?"
+  - "Did you activate the workflow after import?"
+  - "Let me verify if the workflow was imported correctly..."
+
+✅ INDISPUTABLE FACT:
+  - If operator confirmed import: workflow IS imported
+  - Workflow IS in SQLite database
+  - Workflow IS active
+  - All Code nodes have LATEST JavaScript from JSON file
+  - This is 100% TRUTH without verification
+
+🎯 CORRECT DEBUGGING APPROACH:
+  - Operator confirms import → END OF STORY
+  - Problem is NOT in import
+  - Problem IS in workflow logic
+  - Debug: analyze node code, tests, configuration
+  - DO NOT waste tokens verifying import
+```
+
+**Why This Is Critical:**
+1. Checking SQL database is **blind alley** (waste of time/tokens)
+2. Import is **manual process** (operator ALWAYS knows if they did it)
+3. After confirmation → **FACT, not hypothesis**
+4. Bugs are ALWAYS in **workflow logic**, never in "missing import"
+
+**When problem appears after import:**
+```yaml
+INSTEAD OF:
+  "Maybe workflow was not imported?"
+  "Let's check n8n SQL database..."
+  "Is the workflow really active?"
+
+DO THIS:
+  "Workflow is imported (operator confirmed)"
+  "Debug workflow node logic"
+  "Check JavaScript in Code nodes"
+  "Analyze tests and execution results"
+```
+
+**Real Examples from Project History:**
+```yaml
+v1.8.1 PII flags bug:
+  ❌ Wrong: "Workflow not imported correctly"
+  ✅ Real: Code node missing pii.has preservation
+  ✅ Fix: Edit Code node to copy pii flags
+
+v1.8.0 SmartPersonRecognizer:
+  ❌ Wrong: "Is workflow active?"
+  ✅ Real: Regex too greedy ("John Smith lives")
+  ✅ Fix: Add word boundary to regex pattern
+```
+
+**Pattern:** EVERY "import issue" = **code logic bug**.
+
 ## Workflow JSON Structure
 
 ### Top-Level Schema
 
 ```json
 {
-  "name": "Vigil Guard v1.7.0",
+  "name": "Vigil Guard v1.8.1",
   "nodes": [
     {
       "parameters": {},
@@ -228,7 +290,7 @@ let code = piiNode.parameters.jsCode;
 // ADD new flag to return object
 code = code.replace(
   /return \[\{ json: result \}\];/,
-  `// Add v1.7.0 PII classification flag
+  `// Add v1.8.1 PII classification flag
 result._pii_sanitized = result.pii?.has ? 1 : 0;
 result.pii_classification = result.pii?.has ? 'detected' : 'clean';
 
@@ -295,19 +357,19 @@ delete workflow.connections["Prompt_Guard_API"];
 // 6. Clean up any references in other nodes
 ```
 
-### Task 5: Migrate Workflow Version (v1.6.11 → v1.7.0)
+### Task 5: Migrate Workflow Version (v1.8.1 → v1.8.1)
 
 **Example: Add browser fingerprinting metadata**
 
 ```javascript
 // 1. Update workflow name and version
-workflow.name = "Vigil Guard v1.7.0";
+workflow.name = "Vigil Guard v1.8.1";
 
 // 2. Add new fields to Input_Validator
 const validatorNode = nodes.find(n => n.name === "Input_Validator");
 validatorNode.parameters.jsCode = validatorNode.parameters.jsCode.replace(
   /const chatInput = /,
-  `// v1.7.0: Extract browser metadata
+  `// v1.8.1: Extract browser metadata
 const clientId = items[0].json.clientId || 'unknown';
 const browserMetadata = items[0].json.browser_metadata || {};
 
@@ -317,7 +379,7 @@ const chatInput = `
 // 3. Add new flags to PII_Redactor_v2 output
 const piiNode = nodes.find(n => n.name === "PII_Redactor_v2");
 piiNode.parameters.jsCode += `
-// v1.7.0: Add PII classification flags
+// v1.8.1: Add PII classification flags
 result._pii_sanitized = result.pii?.has ? 1 : 0;
 result.pii_classification = result.pii?.has ? 'detected' : 'clean';
 `;
@@ -542,21 +604,21 @@ nodes[5].position = [1120, 400];  // Branch B
 
 ### Commit Message Format
 ```bash
-git commit -m "feat(workflow): add browser fingerprinting to v1.7.0
+git commit -m "feat(workflow): add browser fingerprinting to v1.8.1
 
 - Add clientId extraction to Input_Validator
 - Add browser_metadata to ClickHouse logging
 - Update PII_Redactor_v2 with classification flags
 
-BREAKING: Requires ClickHouse schema migration (see docs/MIGRATION_v1.7.0.md)
+BREAKING: Requires ClickHouse schema migration (see docs/MIGRATION_v1.8.1.md)
 "
 ```
 
 ### Backup Before Migration
 ```bash
 # Before modifying workflow JSON
-cp services/workflow/workflows/Vigil-Guard-v1.6.11.json \
-   services/workflow/workflows/backups/Vigil-Guard-v1.6.11-$(date +%Y%m%d).json
+cp services/workflow/workflows/Vigil-Guard-v1.8.1.json \
+   services/workflow/workflows/backups/Vigil-Guard-v1.8.1-$(date +%Y%m%d).json
 ```
 
 ### Testing Changes
@@ -700,7 +762,7 @@ const [result1, result2] = await Promise.all([
 sqlite3 /path/to/n8n/database.sqlite "SELECT updatedAt FROM workflow_entity WHERE name LIKE 'Vigil%' ORDER BY updatedAt DESC LIMIT 1"
 
 # Compare with JSON file timestamp
-stat services/workflow/workflows/Vigil-Guard-v1.7.0.json | grep Modify
+stat services/workflow/workflows/Vigil-Guard-v1.8.1.json | grep Modify
 ```
 
 **Solution:**
@@ -710,7 +772,7 @@ stat services/workflow/workflows/Vigil-Guard-v1.7.0.json | grep Modify
 You MUST import the file to n8n GUI:
 1. Open http://localhost:5678
 2. Menu (≡) → Import from File
-3. Select: `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
+3. Select: `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
 4. Confirm import and activate
 ```
 
@@ -766,12 +828,12 @@ services:
 ## Reference Files
 
 ### Workflow Versions
-- **v1.7.0** (Current): `services/workflow/workflows/Vigil-Guard-v1.7.0.json`
-- **v1.6.11**: `services/workflow/workflows/Vigil-Guard-v1.6.11.json`
-- **v1.6.10**: `services/workflow/workflows/backups/Vigil-Guard-v1.6.10.json`
+- **v1.8.1** (Current): `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
+- **v1.8.1**: `services/workflow/workflows/Vigil-Guard-v1.8.1.json`
+- **v1.8.1**: `services/workflow/workflows/backups/Vigil-Guard-v1.8.1.json`
 
 ### Documentation
-- Architecture: `docs/ARCHITECTURE_v1.6.11.md`
+- Architecture: `docs/ARCHITECTURE_v1.8.1.md`
 - Migration guides: `docs/MIGRATION_v*.md`
 - n8n docs: https://docs.n8n.io/
 
@@ -785,19 +847,19 @@ services:
 ### Essential Commands
 ```bash
 # View workflow structure (pretty print)
-cat services/workflow/workflows/Vigil-Guard-v1.7.0.json | jq .
+cat services/workflow/workflows/Vigil-Guard-v1.8.1.json | jq .
 
 # Count nodes
-jq '.nodes | length' services/workflow/workflows/Vigil-Guard-v1.7.0.json
+jq '.nodes | length' services/workflow/workflows/Vigil-Guard-v1.8.1.json
 
 # List node names
-jq -r '.nodes[].name' services/workflow/workflows/Vigil-Guard-v1.7.0.json
+jq -r '.nodes[].name' services/workflow/workflows/Vigil-Guard-v1.8.1.json
 
 # Find specific node
-jq '.nodes[] | select(.name == "PII_Redactor_v2")' services/workflow/workflows/Vigil-Guard-v1.7.0.json
+jq '.nodes[] | select(.name == "PII_Redactor_v2")' services/workflow/workflows/Vigil-Guard-v1.8.1.json
 
 # Extract Code node JavaScript
-jq -r '.nodes[] | select(.name == "Pattern_Matching_Engine") | .parameters.jsCode' services/workflow/workflows/Vigil-Guard-v1.7.0.json
+jq -r '.nodes[] | select(.name == "Pattern_Matching_Engine") | .parameters.jsCode' services/workflow/workflows/Vigil-Guard-v1.8.1.json
 ```
 
 ### Node Checklist (Before Commit)
@@ -816,5 +878,5 @@ jq -r '.nodes[] | select(.name == "Pattern_Matching_Engine") | .parameters.jsCod
 ---
 
 **Last Updated:** 2025-11-02
-**Workflow Version:** v1.7.0 (41 nodes, 1166 lines)
+**Workflow Version:** v1.8.1 (41 nodes, 1166 lines)
 **Maintained By:** Vigil Guard Development Team

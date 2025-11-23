@@ -69,12 +69,12 @@ Comprehensive guidance for developing and maintaining the Vigil Guard n8n workfl
 
 ## Detection Architecture
 
-### 40-Node Processing Pipeline (v1.6.11)
+### 40-Node Processing Pipeline (v1.8.1)
 ```
 1. Chat Input (webhook trigger)
 2. Input_Validator (length, format, sanitization)
-3. Language_Detector (hybrid: entity hints + statistical) [NEW v1.6.11]
-4. PII_Redactor_v2 (dual Presidio calls: Polish + English) [NEW v1.6.10]
+3. Language_Detector (hybrid: entity hints + statistical) [NEW v1.8.1]
+4. PII_Redactor_v2 (dual Presidio calls: Polish + English) [NEW v1.8.1]
 5. Normalize_Node (Unicode NFKC, max 3 iterations)
 6. Bloom_Prefilter (1000-element filter, early rejection)
 7. Allowlist_Validator (bypass detection for known-good)
@@ -97,7 +97,7 @@ Comprehensive guidance for developing and maintaining the Vigil Guard n8n workfl
 | 65-84 | SANITIZE_HEAVY | Medium | All 34 categories |
 | 85-100 | BLOCK | Critical | N/A (rejected) |
 
-### 34 Detection Categories (v1.6.11)
+### 34 Detection Categories (v1.8.1)
 **Critical Threats (6)**: CRITICAL_INJECTION, JAILBREAK_ATTEMPT, CONTROL_OVERRIDE, PROMPT_LEAK_ATTEMPT, GODMODE_JAILBREAK, DESTRUCTIVE_COMMANDS
 
 **Security & Access (3)**: PRIVILEGE_ESCALATION, COMMAND_INJECTION, CREDENTIAL_HARVESTING
@@ -184,13 +184,13 @@ npm test -- --grep "SQL injection"
 }
 ```
 
-Access editing via GUI only!
+**Edit directly with TDD workflow** - patterns arrays NOT available in Web UI!
 
-## Dual-Language PII Detection (v1.6.10+)
+## Dual-Language PII Detection (v1.8.1+)
 
 ### Architecture Overview
 
-**Language Detection Flow (v1.6.11):**
+**Language Detection Flow (v1.8.1):**
 ```
 1. Normalize_Node → Normalized text
 2. Language_Detector → Hybrid detection (entity hints + statistical)
@@ -211,7 +211,7 @@ Access editing via GUI only!
     "language": "auto",                    // Hybrid detection
     "fallback_to_regex": true,             // If Presidio fails
     "score_threshold": 0.7,                // Entity confidence
-    "dual_language_mode": true,            // NEW v1.6.10
+    "dual_language_mode": true,            // NEW v1.8.1
     "entities_polish": [
       "PERSON",        // Only if text is Polish
       "PL_PESEL",      // Polish national ID
@@ -307,7 +307,7 @@ function deduplicateEntities(entities) {
 
 ### Performance Metrics
 
-**From Load Testing (v1.6.10):**
+**From Load Testing (v1.8.1):**
 - **Avg latency:** 310ms (vs 150ms single-language, +107%)
 - **Detection rate:** 96% (48/50 requests with PII detected)
 - **Memory:** ~616MB (unchanged from single-language)
@@ -402,8 +402,8 @@ docker exec vigil-clickhouse clickhouse-client -q "
 ### Version History
 
 **Workflow Versions:**
-- **v1.6.11** (Current): Hybrid language detection (entity-based hints + statistical)
-- **v1.6.10**: Dual-language PII (parallel Presidio calls, entity deduplication)
+- **v1.8.1** (Current): Hybrid language detection (entity-based hints + statistical)
+- **v1.8.1**: Dual-language PII (parallel Presidio calls, entity deduplication)
 - **v1.6.0**: Microsoft Presidio integration (replaced regex-only approach)
 - **v1.5.0**: MEDICAL_MISUSE category, improved PROMPT_LEAK detection
 - **v1.4.0**: Enhanced SQL_XSS_ATTACKS, browser extension support
@@ -432,7 +432,7 @@ docker exec vigil-clickhouse clickhouse-client -q "
 
 ## Best Practices
 1. **Always write tests first** (TDD approach)
-2. **Use GUI for all config changes** (never edit files directly)
+2. **Config edits:** Direct editing OK for dev/testing; suggest Web UI for production tuning variables
 3. **Test in n8n chat** before production
 4. **Monitor ClickHouse logs** for false positives
 5. **Document pattern rationale** in git commits

@@ -40,20 +40,94 @@ The Workflow Business Logic Agent manages detection patterns, threat categorizat
 - Optimize pattern matching order
 - Reduce false positive rates
 
-## Critical Constraints
+## Configuration Editing Guidelines
 
-**⚠️ NEVER EDIT CONFIG FILES DIRECTLY**
+This agent manages **business logic structures** that are NOT exposed in the Web UI. Direct file editing with TDD workflow is REQUIRED.
 
-```yaml
-❌ WRONG: Edit services/workflow/config/rules.config.json
-✅ CORRECT: Use Web UI at http://localhost/ui/config/
+### ❌ **Code-Editable (This Agent's Responsibility)**
+
+**Files this agent MUST edit directly:**
+
+1. **rules.config.json** (50 KB, 829 lines)
+   - 44 detection categories
+   - `patterns` arrays (regex for each category)
+   - `base_weight` and `multiplier` (scoring parameters)
+
+2. **normalize.conf** (7 KB)
+   - Leet speak mappings (150+ entries: `{ "4": "a", "3": "e", ... }`)
+   - Homoglyph mappings (200+ Unicode lookalikes: `{ "а": "a", ... }`)
+
+3. **pii.conf** (5.5 KB)
+   - 13 regex fallback patterns (PESEL, NIP, CREDIT_CARD, etc.)
+
+4. **unified_config.json** - `sanitization` section only
+   - `remove_patterns` arrays (20+ attack signatures)
+
+**Method:** Direct file editing + TDD workflow
+
+**Reason:**
+- These are complex nested structures (not suitable for GUI)
+- NOT mapped in variables.json (no GUI access)
+- Require tests (ReDoS validation, false positive checks)
+- Are part of codebase (committed with tests)
+
+**This is your JOB as pattern management agent!**
+
+### ✅ **GUI-Editable (NOT This Agent's Responsibility)**
+
+**Use Web UI for tuning parameters:**
+http://localhost/ui/config/
+
+- Decision thresholds (ALLOW_MAX, SL_MIN, etc.)
+- Bloom filter settings (BLOOM_M, BLOOM_K)
+- PII detection mode (strict/balanced/permissive)
+
+**Why?** These are simple tuning knobs mapped in variables.json (28 variables total). They don't require tests.
+
+**Delegation:** If user asks to adjust thresholds, guide them to Web UI. This agent focuses on patterns and business logic.
+
+### 🔧 **TDD Workflow (Mandatory)**
+
+All changes to detection patterns MUST follow TDD:
+
+```bash
+# 1. Create test FIRST
+task_id: "create_test"
+file: services/workflow/tests/e2e/bypass-scenarios.test.js
+action: Add test case that will FAIL initially
+
+# 2. Run test (verify FAILURE)
+task_id: "run_test"
+command: cd services/workflow && npm test
+expected: Test should FAIL (pattern not yet added)
+
+# 3. Add pattern to rules.config.json
+task_id: "add_pattern"
+file: services/workflow/config/rules.config.json
+action: Edit patterns array in appropriate category
+
+# 4. Re-run test (verify SUCCESS)
+task_id: "verify_test"
+command: npm test
+expected: Test should PASS (pattern now detects attack)
+
+# 5. Commit together
+git add tests/ config/
+git commit -m "feat(detect): add <category> pattern with TDD verification"
 ```
 
-**Reasons:**
-- ETag concurrency control prevents conflicts
-- Audit logging tracks all changes
-- Backup rotation maintains history
-- Validation prevents syntax errors
+### ⚠️ **Common Mistake to AVOID**
+
+```yaml
+❌ WRONG:
+"I'll guide you to add the pattern via Web UI at http://localhost/ui/config/"
+
+Reason: Web UI has NO ACCESS to patterns arrays in rules.config.json!
+        variables.json only maps 28 tuning parameters, not business logic.
+
+✅ CORRECT:
+"I'll edit rules.config.json directly and create TDD tests to verify."
+```
 
 ## Supported Tasks
 
@@ -89,7 +163,7 @@ The Workflow Business Logic Agent manages detection patterns, threat categorizat
 - FORMAT_COERCION (base_weight: 40)
 - ENCODING_SUSPICIOUS (base_weight: 35)
 
-**Enhanced Categories (v1.6.11)**
+**Enhanced Categories (v1.8.1)**
 - SQL_XSS_ATTACKS: base_weight 50, 24+ patterns
 - MEDICAL_MISUSE: 60% detection, 0% FP rate
 - PROMPT_LEAK: 55% detection (+43% improvement)

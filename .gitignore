@@ -54,6 +54,7 @@ build/
 
 # Backup directories
 backup-*/
+backup-.claude-*/
 
 # Environment files
 .env

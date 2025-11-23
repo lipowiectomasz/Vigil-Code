@@ -200,7 +200,7 @@
 
 **Używany w:**
 - Detection engine (services/workflow/)
-- Workflow v1.6.11 → v1.7.0 migration
+- Workflow v1.8.1 → v1.8.1 migration
 - CRITICAL BUG FIXES (PII flag preservation)
 
 **Lokalizacja:** `.claude/agents/vg-workflow-infrastructure/`

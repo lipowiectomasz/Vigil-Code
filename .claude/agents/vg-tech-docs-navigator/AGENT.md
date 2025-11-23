@@ -310,7 +310,7 @@ Each technology in `tech-stack.json` contains:
 - **getCurrentValue() Helper** (React) - ConfigSection.tsx:59-72
 - **JWT Auth Middleware** (Express) - auth.ts:99-111
 - **Dual-Language PII Detection** (Presidio) - piiAnalyzer.ts
-- **Flag Preservation** (n8n) - Vigil-Guard-v1.7.0.json
+- **Flag Preservation** (n8n) - Vigil-Guard-v1.8.1.json
 - **Webhook Testing** (Vitest) - tests/helpers/webhook.js
 
 ## Performance Characteristics

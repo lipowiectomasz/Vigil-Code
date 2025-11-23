@@ -104,15 +104,15 @@ rm .install-state.lock .env vigil_data -rf
 # - Docker network exists
 ```
 
-### Task 4: Migrate Volumes (v1.6.11 → v1.7.0)
+### Task 4: Migrate Volumes (v1.8.1 → v1.8.1)
 
 ```bash
 # Backup old data
 docker run --rm -v vigil_clickhouse_data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/clickhouse-v1.6.11-$(date +%Y%m%d).tar.gz /data
+  tar czf /backup/clickhouse-v1.8.1-$(date +%Y%m%d).tar.gz /data
 
 # Run migration SQL
-docker exec vigil-clickhouse clickhouse-client < services/monitoring/sql/migrations/v1.7.0.sql
+docker exec vigil-clickhouse clickhouse-client < services/monitoring/sql/migrations/v1.8.1.sql
 
 # Verify migration
 docker exec vigil-clickhouse clickhouse-client -q "DESCRIBE n8n_logs.events_processed" | grep pii_sanitized

@@ -42,7 +42,7 @@
   },
   "notes": [
     "Always use TDD approach (test first)",
-    "Never edit config files directly",
+    "Config edits: Direct editing OK for dev/testing; suggest Web UI for production tuning",
     "Use Investigation Panel to verify detection in production",
     "Monitor false positive reports via /api/feedback/stats"
   ]

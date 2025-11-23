@@ -20,7 +20,7 @@ Generate and maintain project documentation.
 ## Example Tasks
 
 "Generate API documentation for backend"
-"Update README with v1.7.0 features"
+"Update README with v1.8.1 features"
 "Create user guide for PII configuration"
 "Sync CLAUDE.md with recent changes"
 "Generate changelog for this sprint"

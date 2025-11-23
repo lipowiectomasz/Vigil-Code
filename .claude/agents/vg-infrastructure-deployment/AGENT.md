@@ -90,7 +90,7 @@ services:
     build:
       context: ./services/service-name
       dockerfile: Dockerfile
-    image: vigil-guard/service-name:v1.6.11
+    image: vigil-guard/service-name:v1.8.1
     container_name: vigil-service-name
     restart: unless-stopped
     ports:
@@ -302,7 +302,7 @@ docker exec vigil-proxy netstat -i
 docker-compose down
 
 # Update docker-compose.yml
-sed -i 's/v1.6.11/v1.7.0/g' docker-compose.yml
+sed -i 's/v1.8.1/v1.8.1/g' docker-compose.yml
 
 # Rebuild services
 docker-compose build --no-cache

@@ -74,7 +74,7 @@ services/workflow/tests/
   "expected_categories": ["SQL_XSS_ATTACKS", "ENCODING_SUSPICIOUS"],
   "expected_min_score": 85,
   "bypass_technique": "hex_encoding",
-  "added_version": "v1.7.0"
+  "added_version": "v1.8.1"
 }
 ```
 

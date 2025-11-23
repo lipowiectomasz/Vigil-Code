@@ -55,7 +55,7 @@ The Test Automation Agent manages all aspects of testing for Vigil Guard, includ
 
 ## Test Suite Architecture
 
-### Current Status (v1.6.11: 100+ Tests)
+### Current Status (v1.8.1: 100+ Tests)
 ```
 ✅ Smoke Tests: 3/3 (100%)
 ✅ False Positives: 15/15 (100%)
@@ -88,7 +88,7 @@ Overall Pass Rate: ~85%
   "expected_categories": ["CATEGORY1", "CATEGORY2"],
   "expected_min_score": 85,
   "bypass_technique": "technique_name",
-  "added_version": "v1.7.0"
+  "added_version": "v1.8.1"
 }
 ```
 

@@ -11,27 +11,87 @@ allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 Expert management of rules.config.json (829 lines, 34 threat categories) including pattern validation, ReDoS protection, scoring algorithms, and false positive tracking.
 
 ## When to Use This Skill
-- Managing detection patterns in rules.config.json (NEVER edit directly, use Web UI!)
+- Managing detection patterns in rules.config.json (direct editing with TDD workflow)
 - Validating regex patterns for ReDoS vulnerabilities
 - Calculating base_weight + multiplier for new patterns
 - Tracking false positive rates per category
 - Analyzing pattern effectiveness metrics
 - Optimizing pattern performance
 
-## Critical Constraint
+## Configuration Editing Guidelines
 
-**⚠️ NEVER EDIT CONFIG FILES DIRECTLY**
+### ✅ **GUI-Editable (Tuning Parameters)**
 
-```yaml
-❌ WRONG: vim services/workflow/config/rules.config.json
-✅ CORRECT: http://localhost/ui/config/ → Detection Tuning
+**Use Web UI for these tuning knobs:**
+http://localhost/ui/config/ → Detection Tuning
+
+- Decision thresholds (ALLOW_MAX, SL_MIN, SL_MAX, SH_MIN, SH_MAX, BLOCK_MIN)
+- Bloom filter settings (BLOOM_M, BLOOM_K, BLOOM_PHRASE_BONUS)
+- Performance toggles (PII_ENABLED, CONTEXT_ENHANCEMENT)
+
+**Reason:** These are safe tuning parameters that don't require tests.
+
+**IMPORTANT:** The "Detection Tuning" section in Web UI only exposes 6 threshold variables. It does NOT provide access to the `patterns` arrays in rules.config.json!
+
+### ❌ **Code-Editable (Detection Logic)**
+
+**Edit directly for these business logic structures:**
+
+**1. Detection patterns** in rules.config.json (829 lines, 44 categories)
+```json
+{
+  "SQL_XSS_ATTACKS": {
+    "base_weight": 50,
+    "multiplier": 1.3,
+    "patterns": [
+      "\\b(SELECT|INSERT|UPDATE|DELETE)\\b.*\\b(FROM|INTO|SET)\\b",
+      // ... add new patterns HERE
+    ]
+  }
+}
 ```
 
-**Reason:** Direct edits bypass:
-- ETag concurrency control (race conditions)
-- Audit logging (no trail)
-- Backup rotation (lost history)
-- Validation (syntax errors)
+**2. Leet speak mappings** in normalize.conf (150+ mappings)
+- `{ "4": "a", "3": "e", "1": "i", "0": "o", ... }`
+
+**3. Homoglyph mappings** in normalize.conf (200+ Unicode lookalikes)
+- `{ "а": "a", "е": "e", "о": "o", ... }` (Cyrillic → Latin)
+
+**4. PII regex fallbacks** in pii.conf (13 patterns)
+- PESEL, NIP, CREDIT_CARD, etc.
+
+**Reason:**
+- Requires TDD workflow (test → pattern → verify)
+- Complex structure (nested JSON, regex patterns)
+- Security validation needed (ReDoS protection)
+- Part of codebase (committed with tests)
+
+**NOT in Web UI** - these structures are too complex for GUI forms and have no mapping in variables.json.
+
+### 🔧 **Pattern Addition Workflow**
+
+When this skill is invoked to add a detection pattern:
+
+```bash
+# 1. Guide user to create test FIRST
+echo "Create test in services/workflow/tests/e2e/bypass-scenarios.test.js"
+
+# 2. Run test (should FAIL)
+cd services/workflow && npm test
+
+# 3. Edit rules.config.json DIRECTLY (not via GUI!)
+vim services/workflow/config/rules.config.json
+# Add pattern to appropriate category's patterns array
+
+# 4. Re-run test (should PASS)
+npm test
+
+# 5. Commit together
+git add tests/ config/
+git commit -m "feat(detect): add <category> pattern with TDD tests"
+```
+
+**CRITICAL:** Web UI cannot edit patterns arrays! Only thresholds are in GUI.
 
 ## Rules.config.json Structure
 
