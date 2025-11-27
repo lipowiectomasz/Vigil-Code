@@ -1,76 +1,231 @@
 # Expert Command
 
-Route task to appropriate technology expert.
+Route task to appropriate technology expert based on intelligent keyword matching.
 
 ## Usage
 
 ```
 /expert [task description]
+/expert [expert-name] [task description]
 ```
 
-## How It Works
+## Routing Logic
 
-1. **Classification**: Analyze task to determine which expert(s) needed
-2. **Routing**: Invoke expert(s) via Task tool
-3. **Execution**: Expert applies technology knowledge + project context
-4. **Synthesis**: Return results to user
-
-## Available Experts
-
-- `n8n-expert` - n8n workflows and automation
-- `react-expert` - React components and hooks
-- `express-expert` - Express.js REST APIs
-- `vitest-expert` - Testing with Vitest
-- `clickhouse-expert` - ClickHouse analytics
-- `docker-expert` - Docker and Compose
-- `presidio-expert` - PII detection
-- `security-expert` - Application security
-- `git-expert` - Git and GitHub
-- `python-expert` - Python development
-- `tailwind-expert` - Tailwind CSS styling
-
-## Examples
+### Automatic Routing (Recommended)
+The command analyzes your task and routes to the best expert based on **trigger keywords**:
 
 ```
 /expert Add health check to Express API
-→ Routes to express-expert
-
-/expert Create test for SQL injection detection
-→ Routes to vitest-expert
-
-/expert Optimize ClickHouse query for dashboard
-→ Routes to clickhouse-expert
-
-/expert Add dark mode to React component
-→ Routes to react-expert + tailwind-expert
+→ Detects: "API", "Express" → Routes to express-expert
 ```
+
+### Direct Routing
+Force routing to specific expert with bracket syntax:
+
+```
+/expert [docker] Why is my container not networking?
+→ Bypasses detection → Routes directly to docker-expert
+```
+
+## Expert Directory with Triggers
+
+| Expert | Triggers | Model |
+|--------|----------|-------|
+| `orchestrator` | multi-step, coordinate, workflow, multiple experts | opus |
+| `n8n-expert` | n8n, workflow, Code node, webhook, automation, node | sonnet |
+| `react-expert` | react, component, hook, useState, useEffect, vite, frontend, jsx | sonnet |
+| `express-expert` | express, api, endpoint, middleware, route, backend, node.js, REST | sonnet |
+| `vitest-expert` | test, vitest, jest, TDD, fixture, mock, assertion, coverage | sonnet |
+| `clickhouse-expert` | clickhouse, analytics, SQL, MergeTree, query, schema, database, Grafana | sonnet |
+| `docker-expert` | docker, container, compose, dockerfile, volume, network, image | sonnet |
+| `presidio-expert` | presidio, PII, entity, recognizer, anonymization, PESEL, NIP, personal data | sonnet |
+| `security-expert` | security, OWASP, vulnerability, injection, XSS, authentication, authorization, audit | sonnet |
+| `git-expert` | git, commit, branch, merge, rebase, PR, pull request, GitHub | sonnet |
+| `python-expert` | python, flask, fastapi, pip, pytest, async, pandas, spacy | sonnet |
+| `tailwind-expert` | tailwind, CSS, styling, responsive, dark mode, utility, design | sonnet |
 
 ## Execution Protocol
 
 When this command is invoked:
 
-1. Read the task description
-2. Classify which expert(s) are needed
-3. For single expert: invoke directly via Task tool
-4. For multiple experts: create progress.json and coordinate
-5. Report results with proper formatting
-
-## Multi-Expert Workflow
-
-For complex tasks requiring multiple experts:
-
+### Step 1: Classification
 ```
-🎯 Task: [description]
+1. Parse task description for trigger keywords
+2. Match against expert trigger lists
+3. Determine if single or multi-expert task
+4. Select strategy: single | sequential | parallel
+```
+
+### Step 2: Expert Invocation
+For each expert, use Task tool with model parameter:
+
+```javascript
+Task(
+  prompt: `You are ${expertName}, a world-class expert in ${technology}.
+
+           Read .claude/agents/${expertName}/AGENT.md for your full knowledge base.
+           Read .claude/state/progress.json if multi-step workflow.
+
+           Task: ${taskDescription}
+
+           After completion, update progress.json and return summary.`,
+  subagent_type: "general-purpose",
+  model: expertModel  // From frontmatter: "sonnet" or "opus"
+)
+```
+
+### Step 3: Parallel Execution (When Applicable)
+If experts are independent, invoke in parallel:
+
+```javascript
+// Multiple Task calls in single message
+Task(prompt: "vitest-expert: Create test fixture...", model: "sonnet")
+Task(prompt: "n8n-expert: Add pattern to workflow...", model: "sonnet")
+```
+
+## Examples
+
+### Single Expert (Direct)
+```
+/expert How do I create a custom recognizer in Presidio?
+
+🤖 Invoking: presidio-expert (model: sonnet)
+
+To create a custom recognizer in Presidio:
+[expert response]
+
+📚 Source: https://microsoft.github.io/presidio/
+```
+
+### Multi-Expert (Sequential)
+```
+/expert Add SQL injection detection with tests
+
+🎯 Task: Add SQL injection detection with tests
 
 📋 Classification:
-   • Primary: [expert]
-   • Supporting: [experts]
-   • Strategy: [sequential/parallel]
+   • Primary: vitest-expert
+   • Supporting: n8n-expert
+   • Strategy: sequential (TDD workflow)
 
-🤖 Step 1: [expert-name]
-   ├─ ▶️  Action: [action]
-   ├─ 📝 [progress]
+🧪 Step 1/3: vitest-expert (model: sonnet)
+   ├─ ▶️  Action: create_fixture
+   ├─ 📝 Creating test fixture for SQL injection...
+   └─ ✅ Completed (1.2s)
+
+⚙️  Step 2/3: n8n-expert (model: sonnet)
+   ├─ ▶️  Action: add_pattern
+   ├─ 🔍 Fetching docs... (verifying Code node syntax)
+   ├─ 📝 Adding pattern to workflow...
+   └─ ✅ Completed (0.8s)
+
+🧪 Step 3/3: vitest-expert (model: sonnet)
+   ├─ ▶️  Action: run_tests
+   ├─ 📝 Verifying pattern detection...
+   └─ ✅ Completed (2.1s)
+
+════════════════════════════════════════════════════════════
+✨ Task Completed in 4.1s
+
+📋 Summary:
+   SQL injection detection pattern added with passing tests
+
+📁 Artifacts:
+   • tests/fixtures/sql-injection.json (created)
+   • workflow Code node updated
+
+🤝 Coordinated 2 experts:
+   • vitest-expert (2 actions)
+   • n8n-expert (1 action)
+════════════════════════════════════════════════════════════
+```
+
+### Multi-Expert (Parallel)
+```
+/expert Create API endpoint with React component
+
+🎯 Task: Create API endpoint with React component
+
+📋 Classification:
+   • Experts: express-expert, react-expert
+   • Strategy: parallel (independent work)
+
+⚡ Executing in parallel...
+
+🔧 express-expert (model: sonnet)
+   ├─ ▶️  Action: create_endpoint
+   └─ ✅ Completed
+
+⚛️  react-expert (model: sonnet)
+   ├─ ▶️  Action: create_component
    └─ ✅ Completed
 
 ✨ Task Completed
+```
+
+## State Management
+
+Multi-step workflows use `.claude/state/progress.json`:
+
+```json
+{
+  "version": "3.0",
+  "workflow_id": "wf-20251127-abc123",
+  "task": {
+    "original_request": "Add SQL injection detection with tests",
+    "summary": "TDD workflow for SQL injection pattern"
+  },
+  "classification": {
+    "primary_expert": "vitest-expert",
+    "supporting_experts": ["n8n-expert"],
+    "strategy": "sequential",
+    "estimated_steps": 3
+  },
+  "status": "in_progress",
+  "current_step": 2,
+  "steps": [
+    {
+      "expert": "vitest-expert",
+      "action": "create_fixture",
+      "status": "completed",
+      "duration_ms": 1200,
+      "artifacts": ["tests/fixtures/sql-injection.json"]
+    },
+    {
+      "expert": "n8n-expert",
+      "action": "add_pattern",
+      "status": "in_progress"
+    },
+    {
+      "expert": "vitest-expert",
+      "action": "run_tests",
+      "status": "pending"
+    }
+  ],
+  "artifacts": {},
+  "errors": []
+}
+```
+
+## When NOT to Use /expert
+
+- **Simple file edits**: Use Read/Edit tools directly
+- **Codebase exploration**: Use Explore agent
+- **Documentation updates**: Direct editing is faster
+- **Single command execution**: Use Bash directly
+
+## 3-Tier Knowledge Model
+
+Each expert has access to:
+
+1. **Tier 1 (Core)**: In-context knowledge - handles 80% of tasks
+2. **Tier 2 (Docs)**: WebFetch official documentation when uncertain
+3. **Tier 3 (Community)**: WebSearch for edge cases and workarounds
+
+Experts will indicate when they consult documentation:
+```
+🔍 Let me verify this in the documentation...
+[WebFetch: https://docs.n8n.io/...]
+✅ Confirmed: [solution]
+📚 Source: [url]
 ```
