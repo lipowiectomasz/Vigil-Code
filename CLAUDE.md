@@ -134,71 +134,98 @@ Co-Authored-By: Claude <...>   # ← FORBIDDEN
    - Use them to understand current focus, but don't assume they exist
 3. **Use Master Orchestrator for ALL multi-step tasks** - This is NON-NEGOTIABLE
 
-### 🤖 Agent-First Approach (MANDATORY)
+### 🤖 Technology Expert Agents (v3.0)
 
-**ALWAYS use agents for tasks. NEVER work directly unless explicitly instructed.**
+**Use technology expert agents for domain-specific tasks.**
+
+**Agent System Philosophy:**
+```
+❌ OLD: Agents knew project internals (vg-* agents)
+✅ NEW: Agents are technology experts + read project context from files
+```
+
+**Available Technology Experts (12):**
+
+| Expert | Technology | Use For |
+|--------|------------|---------|
+| `orchestrator` | Coordination | Multi-expert task routing |
+| `n8n-expert` | n8n | Workflows, nodes, webhooks |
+| `react-expert` | React + Vite | Components, hooks, UI |
+| `express-expert` | Express.js | REST APIs, middleware |
+| `vitest-expert` | Vitest | Testing, TDD, fixtures |
+| `clickhouse-expert` | ClickHouse | Analytics SQL, schema |
+| `docker-expert` | Docker | Containers, compose |
+| `presidio-expert` | MS Presidio | PII detection, NLP |
+| `security-expert` | Security | OWASP, auth, vulnerabilities |
+| `git-expert` | Git | Version control, commits |
+| `python-expert` | Python | Flask, FastAPI |
+| `tailwind-expert` | Tailwind CSS | Styling |
 
 **Decision Tree:**
 
 ```
 User Request
     ↓
-Is it multi-step OR involves multiple domains?
-    ├─ YES → Use Master Orchestrator (`/vg-orchestrate` or Skill `vg-master-orchestrator`)
-    │         • Examples: Add detection pattern, run security audit, deploy service
-    │         • Master will coordinate specialized agents automatically
-    │         • Provides progress tracking and result synthesis
+Is it multi-step OR involves multiple technologies?
+    ├─ YES → Use Orchestrator (coordinates multiple experts)
+    │         • Creates progress.json for state tracking
+    │         • Invokes experts sequentially or in parallel
+    │         • Synthesizes results
     │
-    └─ NO → Is it domain-specific (single concern)?
-            ├─ YES → Use specialized agent directly
-            │         • Pattern config: `pattern-library-manager`
-            │         • Testing: `vigil-testing-e2e`
-            │         • PII: `presidio-pii-specialist`
-            │         • Security: `vigil-security-patterns`
-            │         • Analytics: `clickhouse-grafana-monitoring`
+    └─ NO → Is it technology-specific?
+            ├─ YES → Invoke specific expert via Task tool
+            │         • n8n question → n8n-expert
+            │         • Testing task → vitest-expert
+            │         • Security audit → security-expert
             │
-            └─ NO → Simple task (single file edit, documentation lookup)
+            └─ NO → Simple task (single file edit)
                     → OK to work directly
-                    → But still consider `Explore` agent for codebase navigation
 ```
 
-**Why Agent-First?**
-- ✅ Maintains context across complex operations
-- ✅ Prevents token exhaustion on large codebases
-- ✅ Enforces TDD workflows automatically
-- ✅ Provides built-in error recovery
-- ✅ Tracks progress in real-time
-- ✅ Reduces redundant questions
+**How Experts Work:**
 
-**Examples:**
+1. **3-Tier Knowledge:**
+   - Tier 1: Core knowledge (in-context)
+   - Tier 2: Official documentation (WebFetch when uncertain)
+   - Tier 3: Community knowledge (WebSearch for edge cases)
 
-<example>
-❌ WRONG:
-User: "Add SQL injection detection"
-Assistant: Let me search for the pattern file...
-*Uses Grep directly, reads multiple files, loses context*
+2. **Documentation Protocol:**
+   ```
+   🔍 Let me verify this in the documentation...
+   [WebFetch: https://docs.n8n.io/...]
+   ✅ Confirmed: [solution]
+   Source: [url]
+   ```
 
-✅ CORRECT:
-User: "Add SQL injection detection"
-Assistant: I'll use the Master Orchestrator to coordinate this task.
-*Invokes `/vg-orchestrate Add SQL injection detection`*
-*Orchestrator activates PATTERN_ADDITION workflow*
-*vg-test-automation creates fixture → vg-workflow-business-logic adds pattern → verification*
-</example>
+3. **Context from Files:**
+   - Project context from CLAUDE.md
+   - Task state from `.claude/state/progress.json`
+   - Never hardcoded project knowledge
 
-<example>
-❌ WRONG:
-User: "Run security audit"
-Assistant: Let me check for vulnerabilities...
-*Runs npm audit, checks secrets, loses track of findings*
+**Example:**
 
-✅ CORRECT:
-User: "Run security audit"
-Assistant: I'll use the Master Orchestrator for comprehensive security analysis.
-*Invokes `/vg-orchestrate Run security audit`*
-*Orchestrator runs SECURITY_AUDIT workflow with parallel scanning*
-*vg-security-compliance synthesizes findings with priorities*
-</example>
+```
+User: "Add SQL injection detection with tests"
+
+🎯 Task: Add SQL injection detection
+
+📋 Classification:
+   • Primary: n8n-expert
+   • Supporting: vitest-expert
+   • Strategy: sequential
+
+🤖 Step 1: vitest-expert
+   ├─ ▶️  Action: create_test
+   ├─ 📝 Creating fixture for SQL injection...
+   └─ ✅ Completed (1.2s)
+
+🤖 Step 2: n8n-expert
+   ├─ ▶️  Action: add_pattern
+   ├─ 📝 Adding pattern to workflow...
+   └─ ✅ Completed (0.8s)
+
+✨ Task Completed
+```
 
 ### 🎨 Visibility Protocol (MANDATORY)
 
@@ -208,18 +235,18 @@ This protocol ensures users can see agent activity in real-time, even when Claud
 
 #### Required Emoji Indicators
 
-Use these emoji in EVERY response involving agents:
+Use these emoji in EVERY response involving experts:
 
 ```
 🎯 Task: [description]               # Start of task
-🎭 Strategy: [type]                  # Execution strategy (single|parallel|sequential|workflow)
-🤖 Invoking agent: vg-[name]        # Agent activation
-▶️  Action: [action_name]           # Agent action being performed
+🎭 Strategy: [type]                  # Execution strategy (single|parallel|sequential)
+🤖 Invoking: [expert-name]          # Expert activation
+▶️  Action: [action_name]           # Action being performed
 📝 [message]                         # Progress update
 ✅ Completed (X.Xs)                  # Success with duration
 ❌ Failed: [error]                   # Failure with error message
-🔄 Retry [N]/[max]                  # Retry attempt
-↪️  [agent1] → [agent2]             # Inter-agent communication
+🔍 Fetching docs...                  # Documentation lookup
+↪️  [expert1] → [expert2]           # Expert handoff
 ```
 
 #### Example Response Format
@@ -227,37 +254,37 @@ Use these emoji in EVERY response involving agents:
 ```
 🎯 Task: Add SQL injection detection
 
-🎭 Strategy: WORKFLOW (PATTERN_ADDITION)
+🎭 Strategy: Sequential (TDD workflow)
 
-🧪 Step 1/4: Invoking agent: vg-test-automation
+📋 Classification:
+   • Primary: vitest-expert
+   • Supporting: n8n-expert
+
+🧪 Step 1: Invoking vitest-expert
    ▶️  Action: create_test
    📝 Creating fixture for SQL injection...
    ✅ Completed (1.2s)
 
-⚙️  Step 2/4: Invoking agent: vg-workflow-business-logic
+⚙️  Step 2: Invoking n8n-expert
    ▶️  Action: add_pattern
-   📝 Adding pattern to rules.config.json...
+   🔍 Fetching docs... (verifying Code node syntax)
+   📝 Adding pattern to workflow...
    ✅ Completed (0.8s)
 
-🧪 Step 3/4: Invoking agent: vg-test-automation
+🧪 Step 3: Invoking vitest-expert
    ▶️  Action: run_test
-   📝 Running test suite...
+   📝 Verifying pattern detection...
    ✅ Completed (2.1s)
 
-🧪 Step 4/4: Invoking agent: vg-test-automation
-   ▶️  Action: verify_test
-   📝 Verifying pattern detection...
-   ✅ Completed (1.5s)
-
 ════════════════════════════════════════════════════════════
-✨ Workflow Completed in 5.6s
+✨ Task Completed in 4.1s
 
 📋 Summary:
    SQL injection detection pattern added successfully
 
-🤝 Coordinated 2 agents:
-   • vg-test-automation (3 actions)
-   • vg-workflow-business-logic (1 action)
+🤝 Coordinated 2 experts:
+   • vitest-expert (2 actions)
+   • n8n-expert (1 action)
 ════════════════════════════════════════════════════════════
 ```
 
@@ -275,47 +302,28 @@ Use these emoji in EVERY response involving agents:
 - ✅ Can interrupt if needed
 - ✅ Can debug failures (knows which agent failed)
 
-#### Real-Time UI State Tracking
+#### Progress File State Tracking
 
-**NEW:** Agent system now updates `.claude-code/ui-state.json` in real-time
+Multi-step workflows track state in `.claude/state/progress.json`:
 
-**Automatic updates:**
-- `BaseAgent.updateUIState()` - when agent starts/completes
-- `ProgressReporter.updateUIState()` - when workflow starts/completes
-
-**View status anytime:** `/status-agents`
-
-**Example output:**
-```
-🤖 Vigil Guard Agent System v2.0.1
-
-ACTIVE AGENTS (1):
-🔄 test-automation    Running: "verify_pattern" (3.5s elapsed)
-
-IDLE AGENTS (11):
-✅ 🔒 pii-detection
-   Last: "analyze_entity" (5m ago)
-   Success: 23 | Failures: 0
-
-[... 10 more agents ...]
-
-WORKFLOW STATUS:
-🎯 Active Workflow: PATTERN_ADDITION
-   Strategy: SEQUENTIAL
-   Progress: Step 3/4
-   Duration: 5.3s elapsed
-
-SYSTEM STATS:
-• Total Agent Executions: 127
-• Last Updated: 2s ago
+```json
+{
+  "workflow_id": "wf-20251127-abc123",
+  "status": "in_progress",
+  "current_expert": "n8n-expert",
+  "completed_steps": ["vitest-expert:create_test"],
+  "next_step": {
+    "expert": "n8n-expert",
+    "action": "add_pattern"
+  }
+}
 ```
 
-#### Implementation Notes
-
-- **Console output:** Progress reporter automatically includes emoji
-- **UI state file:** Updated automatically by BaseAgent and ProgressReporter
-- **Backward compatible:** Graceful degradation if `.claude-code/` missing
-- **No performance impact:** UI state updates are async and non-blocking
+**How state is maintained:**
+- Each expert reads progress.json at start of invocation
+- Expert updates progress.json before completing
+- Next expert picks up where previous left off
+- No Node.js runtime needed - just file I/O
 
 ---
 
@@ -553,11 +561,13 @@ const enResults = await analyzeEnglish(text);
 
 **When investigating issues:**
 
-1. **Use appropriate agent:**
-   - Workflow issues → `workflow-json-architect`
-   - Test failures → `vigil-testing-e2e`
-   - PII problems → `presidio-pii-specialist`
-   - Performance → `clickhouse-grafana-monitoring`
+1. **Use appropriate technology expert:**
+   - Workflow issues → `n8n-expert`
+   - Test failures → `vitest-expert`
+   - PII problems → `presidio-expert`
+   - Performance → `clickhouse-expert`
+   - Security issues → `security-expert`
+   - Docker problems → `docker-expert`
 
 2. **Check logs in order:**
    ```bash
@@ -589,15 +599,15 @@ const enResults = await analyzeEnglish(text);
 
 **Most Common Workflows:**
 
-| Task | Command | Agent Used |
-|------|---------|-----------|
-| Add detection pattern | `/vg-orchestrate Add [pattern] detection` | Master → test-automation + workflow-business-logic |
+| Task | Command/Approach | Expert(s) Used |
+|------|------------------|----------------|
+| Add detection pattern | Use `/expert` + TDD workflow | vitest-expert → n8n-expert |
 | Run tests | `cd services/workflow && npm test` | Direct (simple task) |
-| Security audit | `/vg-orchestrate Run security audit` | Master → security-compliance (parallel) |
-| Deploy service | `/vg-orchestrate Deploy [service]` | Master → infrastructure-deployment |
-| PII entity addition | `/vg-orchestrate Add PII entity [type]` | Master → pii-detection + test-automation |
+| Security audit | `/expert Run security audit` | security-expert |
 | Config change | Use Web UI: http://localhost/ui/config/ | N/A (GUI-only) |
-| Workflow change | Edit JSON + tell user to import | workflow-json-architect |
+| Workflow JSON change | Edit JSON + tell user to import | n8n-expert |
+| PII questions | `/expert How to add PII entity?` | presidio-expert |
+| Docker issues | `/expert Fix container networking` | docker-expert |
 
 **Emergency Commands:**
 ```bash
@@ -676,196 +686,143 @@ Edit Vigil-Guard-v1.7.0.json
 echo "MUSISZ WGRAĆ ten plik do n8n żeby zmiany zadziałały!"
 ```
 
-## ⚠️ IMPORTANT: Master-Agent Architecture (v2.0) - NOW IMPLEMENTED
+## ⚠️ Technology Expert Agent System (v3.0)
 
-**STATUS UPDATE (2024-11-04): REAL AUTONOMOUS ORCHESTRATION NOW AVAILABLE**
+**STATUS UPDATE (2024-11-27): UNIVERSAL TECHNOLOGY EXPERTS**
 
-The Master Orchestrator has been **fully implemented** with executable code, replacing the previous documentation-only system. This is a true autonomous agent orchestration system with inter-agent communication.
+The agent system has been redesigned from project-specific agents to **universal technology experts**. Agents now focus on technologies (n8n, React, Docker) rather than project internals.
 
-### Implementation Status
+### Philosophy
 
-✅ **COMPLETED Components:**
-- **Core Infrastructure** - Base agent class, message bus, state manager, progress reporter, task classifier (`/.claude/core/`)
-- **Master Orchestrator** - Autonomous routing with real-time visibility (`/.claude/agents/vg-master-orchestrator/`)
-- **ALL 11 Agents** - 10 worker agents + 1 meta-agent (vg-master-orchestrator)
-  - vg-test-automation, vg-workflow-business-logic, vg-pii-detection
-  - vg-backend-api, vg-frontend-ui, vg-data-analytics
-  - vg-workflow-infrastructure, vg-infrastructure-deployment
-  - vg-security-compliance, vg-documentation
-  - vg-master-orchestrator (meta-agent coordinator)
-- **21 Slash Commands** - /vg-orchestrate, /orchestrate, /agent-help, etc.
-- **18 Skills** - All with YAML headers for auto-activation
-- **Demo & Testing** - Interactive CLI and demonstration scripts
-- **Progress Reporting** - Real-time visibility of agent operations
-
-✅ **STATUS:** All agents fully implemented, no duplication, production ready
-
-### How to Use the Real Orchestrator
-
-```bash
-# 1. Via slash command (recommended)
-/orchestrate Add SQL injection detection pattern
-
-# 2. Via interactive CLI (for testing)
-cd .claude/agents/vg-master-orchestrator
-node init.js
-
-# 3. Run demonstration
-node demo.js
-
-# 4. Test full system
-node test-full-system.js
 ```
+❌ OLD (v2.0): Agents knew project internals (vg-* agents with hardcoded knowledge)
+✅ NEW (v3.0): Agents are technology experts + read project context from files
+```
+
+**Benefits:**
+- **Reusable**: Same agents work across any project
+- **Maintainable**: Update technology knowledge, not project-specific code
+- **Expert-level**: Deep specialization in one technology per agent
+- **Future-proof**: Your code evolves, agents adapt via context
+- **Documentation-aware**: Experts fetch official docs when uncertain
 
 ### Architecture Overview
 
 ```
-User Request → Master Orchestrator
-                ├── Task Classifier (intelligent routing)
-                ├── Workflow Executor (template execution)
-                ├── Message Bus (async agent communication)
-                └── State Manager (workflow persistence)
-                     ↓
-              Specialized Agents (3 implemented, 7 pending)
+┌─────────────────────────────────────────────────────────────────┐
+│                    TECHNOLOGY EXPERTS                           │
+│                                                                 │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
+│  │ n8n        │ │ React      │ │ Express    │ │ Docker     │  │
+│  │ Expert     │ │ Expert     │ │ Expert     │ │ Expert     │  │
+│  └─────┬──────┘ └─────┬──────┘ └─────┬──────┘ └─────┬──────┘  │
+│        │              │              │              │          │
+│        └──────────────┴──────────────┴──────────────┘          │
+│                              │                                  │
+│                              ▼                                  │
+│              ┌───────────────────────────────┐                 │
+│              │      Orchestrator             │                 │
+│              │  (routes tasks to experts)    │                 │
+│              └───────────────────────────────┘                 │
+│                              │                                  │
+│                              ▼                                  │
+│              ┌───────────────────────────────┐                 │
+│              │     Project Context           │                 │
+│              │  - CLAUDE.md                  │                 │
+│              │  - progress.json              │                 │
+│              │  - Project files              │                 │
+│              └───────────────────────────────┘                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Key Features Now Working
+### Available Technology Experts (12)
 
-1. **Autonomous Agent Communication** - Agents can invoke other agents independently
-2. **Parallel Execution** - Multiple agents work simultaneously when possible
-3. **Workflow Templates** - Pre-configured multi-step workflows (PATTERN_ADDITION, etc.)
-4. **State Persistence** - Workflows maintain state across executions
-5. **Error Recovery** - Automatic retry logic with fallback options
-6. **Progress Tracking** - Real-time updates during execution
+| Expert | Technology | Specialization |
+|--------|------------|----------------|
+| `orchestrator` | Coordination | Task routing, workflow management |
+| `n8n-expert` | n8n | Workflows, nodes, webhooks, automation |
+| `react-expert` | React + Vite | Components, hooks, state, modern React |
+| `express-expert` | Express.js | REST APIs, middleware, auth, routing |
+| `vitest-expert` | Vitest/Jest | Testing, TDD, fixtures, mocking |
+| `clickhouse-expert` | ClickHouse | Analytics SQL, schema, optimization |
+| `docker-expert` | Docker | Containers, compose, networking |
+| `presidio-expert` | MS Presidio | PII detection, NLP, entity recognition |
+| `security-expert` | Security | OWASP, auth, vulnerabilities |
+| `git-expert` | Git/GitHub | Version control, workflows, PRs |
+| `python-expert` | Python | Flask, FastAPI, data processing |
+| `tailwind-expert` | Tailwind CSS | Utility CSS, responsive design |
 
-### Available Agents (11/11 Fully Implemented)
+### 3-Tier Knowledge Model
 
-#### ✅ Worker Agents (10)
-1. **vg-test-automation** - Test creation, execution, fixture generation
-2. **vg-workflow-business-logic** - Pattern management, rules.config.json
-3. **vg-pii-detection** - Dual-language PII detection (Polish + English)
-4. **vg-workflow-infrastructure** - n8n JSON structure, node management
-5. **vg-backend-api** - Express.js, JWT auth, ClickHouse queries
-6. **vg-frontend-ui** - React components, Tailwind v4, API integration
-7. **vg-data-analytics** - ClickHouse schema, Grafana dashboards
-8. **vg-infrastructure-deployment** - Docker orchestration, install.sh
-9. **vg-security-compliance** - Security scanning, vulnerability fixes
-10. **vg-documentation** - Documentation sync, API generation
+Each expert has access to 3 tiers of knowledge:
 
-#### ✅ Meta-Agent (1)
-11. **vg-master-orchestrator** - Coordinates all 10 worker agents
-    - Task classification and intelligent routing
-    - Workflow execution (TDD, Security Audit, PII Entity, etc.)
-    - Parallel/sequential coordination
-    - Result synthesis with recommendations
+**Tier 1: Core Knowledge (in-context)**
+- Fundamentals, best practices, common patterns
+- Used for 80% of tasks
 
-**Location:** `.claude/agents/vg-*/` (all with AGENT.md + agent.js)
-**Agent Naming Convention:** All Vigil Guard agents use the `vg-` prefix for clear identification
+**Tier 2: Official Documentation (WebFetch)**
+- API references, configuration options
+- Fetched when uncertain about details
 
-### Working Workflow Templates
-
-The Master Orchestrator executes these workflows autonomously:
-
-- **PATTERN_ADDITION** - TDD approach with 4 sequential steps
-- **PII_ENTITY_ADDITION** - Add PII entity (3 agents pending)
-- **SECURITY_AUDIT** - Parallel scanning (agents pending)
-- **TEST_EXECUTION** - Run and analyze tests
-- **SERVICE_DEPLOYMENT** - Deploy services (agents pending)
-
-### Examples
-
-**Simple Request:**
-```
-User: "Add SQL injection detection"
-Master: Activates PATTERN_ADDITION workflow
-→ vg-test-automation creates test
-→ vg-workflow-business-logic guides pattern addition
-→ vg-test-automation verifies
-```
-
-**Complex Request:**
-```
-User: "Run security audit"
-Master: Activates SECURITY_AUDIT workflow
-→ Parallel: npm audit, secret scan, ReDoS check, auth review
-→ vg-security-compliance synthesizes findings
-→ Complete report with prioritized fixes
-```
-
-### Migration Notes
-
-**From Old Skills (17) to New System:**
-- ✅ **11 Agents** (10 worker + 1 meta-agent in `.claude/agents/`)
-- ✅ **18 Skills** (domain-specific, auto-activated in `.claude/skills/`)
-- ✅ **21 Slash Commands** (quick access in `.claude/commands/`)
-- ✅ **5 Core Modules** (shared infrastructure in `.claude/core/`)
-
-**Key Consolidations:**
-- `vigil-testing-e2e` + `test-fixture-generator` → `vg-test-automation`
-- `n8n-vigil-workflow` + `pattern-library-manager` → `vg-workflow-business-logic`
-- `presidio-pii-specialist` + `language-detection-expert` → `vg-pii-detection`
-- `docker-vigil-orchestration` + `installation-orchestrator` → `vg-infrastructure-deployment`
-- `vigil-security-patterns` + `security-audit-scanner` → `vg-security-compliance`
-- Added `vg-master-orchestrator` as first-class agent (was separate `master/` directory)
-
-**Structure Changes (v2.0):**
-- ❌ Removed: `master/`, `master-orchestrator/` (duplicates)
-- ✅ Added: `agents/vg-master-orchestrator/` (consistent structure)
-- ✅ All 18 skills now have YAML headers (auto-activation)
-- ✅ Complete documentation in `.claude/README.md`
-
-**Benefits:**
-- 0% duplication (was 3 duplicate directories)
-- 30-50% faster multi-agent tasks
-- Automatic workflow orchestration
-- No manual agent selection needed
-- Real-time progress visibility
-- Production-ready, fully tested
-
-### Real-Time Progress Visibility
-
-**NEW:** The orchestrator now provides live progress reporting during task execution:
+**Tier 3: Community Knowledge (WebSearch)**
+- Edge cases, workarounds, known issues
+- Used for unusual problems
 
 ```
-🎯 Task: Add SQL injection detection
-════════════════════════════════════════════════════════
-📊 Classification:
-   • Category: detection
-   • Confidence: 95%
-   • Agents: vg-workflow-business-logic, vg-test-automation
-   • Workflow: PATTERN_ADDITION
-
-🎭 Strategy: WORKFLOW
-
-🧪 Invoking: vg-test-automation
-   ├─ ▶️  Action: create_test
-   ├─ 📝 Creating fixture...
-   └─ ✅ Completed (1.2s)
-
-⚙️ Invoking: vg-workflow-business-logic
-   ├─ ▶️  Action: add_pattern
-   ├─ [████████████████░░░░] 80% - Pattern added to configuration
-   └─ ✅ Completed (0.8s)
-
-════════════════════════════════════════════════════════
-✨ Task Completed in 2.3s
-
-📋 Summary:
-   Pattern addition workflow completed successfully
-
-🤝 Coordinated 2 agents:
-   • vg-test-automation
-   • vg-workflow-business-logic
+🔍 Let me verify this in the documentation...
+[WebFetch: https://docs.n8n.io/...]
+✅ Confirmed: [solution]
+Source: [url]
 ```
 
-**Features:**
-- 🎯 Task classification with confidence scoring
-- ⚙️ Agent invocation tracking with icons
-- 📊 Progress bars for long-running operations
-- ⚡ Parallel execution visualization
-- ✅ Success/failure indicators with timing
-- 🔄 Retry attempts tracking
-- ↪️ Inter-agent communication tracing
+### How Experts Are Invoked
+
+Experts are invoked via Task tool with prompts:
+
+```
+Task(
+  prompt="You are n8n-expert. Read .claude/state/progress.json for context.
+          Execute: add_node action. Update progress when done.",
+  subagent_type="general-purpose"
+)
+```
+
+### Progress File Protocol
+
+Multi-step tasks use `.claude/state/progress.json`:
+
+```json
+{
+  "workflow_id": "wf-20251127-abc123",
+  "task": {
+    "original_request": "Add SQL injection detection",
+    "summary": "Create test + add pattern"
+  },
+  "classification": {
+    "primary_expert": "n8n-expert",
+    "supporting_experts": ["vitest-expert"],
+    "strategy": "sequential"
+  },
+  "status": "in_progress",
+  "completed_steps": [...],
+  "next_step": {...}
+}
+```
+
+### Migration from v2.0
+
+**Removed (v2.0 → v3.0):**
+- ❌ `vg-*` agents (project-specific)
+- ❌ `message-bus.js` (didn't work in Claude Code)
+- ❌ `base-agent.js` (Node.js classes not invocable)
+- ❌ `state-manager.js` (replaced with progress.json)
+- ❌ `master/`, `master-orchestrator/` directories
+
+**Added (v3.0):**
+- ✅ 12 technology experts (in `.claude/agents/`)
+- ✅ Documentation protocol (WebFetch/WebSearch)
+- ✅ Progress file for state (`.claude/state/progress.json`)
+- ✅ Core protocols document (`.claude/core/protocols.md`)
 
 ## Project Overview
 
@@ -893,10 +850,26 @@ Master: Activates SECURITY_AUDIT workflow
 ```
 vigil-guard/
 ├── .claude/                         # ⚠️ IN .gitignore, NEVER commit
-│   ├── agents/ (11 agents)         # Specialized agents (10 worker + 1 meta)
-│   ├── core/ (5 modules)           # Infrastructure (message-bus, state-manager, etc.)
-│   ├── skills/ (18 skills)         # Domain-specific guidance (auto-activated)
-│   ├── commands/ (21 slash cmds)   # /vg-orchestrate, /add-detection-pattern, etc.
+│   ├── agents/ (12 experts)        # Technology experts (orchestrator + 11 specialists)
+│   │   ├── orchestrator/           # Task routing & coordination
+│   │   ├── n8n-expert/             # n8n automation
+│   │   ├── react-expert/           # React development
+│   │   ├── express-expert/         # Express.js APIs
+│   │   ├── vitest-expert/          # Testing
+│   │   ├── clickhouse-expert/      # Analytics DB
+│   │   ├── docker-expert/          # Containers
+│   │   ├── presidio-expert/        # PII detection
+│   │   ├── security-expert/        # Security
+│   │   ├── git-expert/             # Version control
+│   │   ├── python-expert/          # Python development
+│   │   └── tailwind-expert/        # CSS styling
+│   ├── core/                       # Shared protocols
+│   │   └── protocols.md            # Progress file, docs, handoff protocols
+│   ├── state/                      # Workflow state persistence
+│   │   └── progress.json           # Current workflow state
+│   ├── commands/                   # Slash commands
+│   │   └── expert.md               # /expert command
+│   ├── skills/                     # Legacy skills (simplified)
 │   ├── README.md                   # Complete .claude/ documentation
 │   └── settings.local.json         # Claude Code config
 ├── services/
@@ -1477,129 +1450,83 @@ Before making changes:
 
 ---
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-27
 **Maintained By:** Vigil Guard Team
-**Documentation Version:** 1.6.11
+**Documentation Version:** 3.0.0 (Technology Expert System)
 
 ---
 
-## Master Orchestrator FAQ
+## Technology Expert FAQ
 
-### When Should Claude Use the Orchestrator?
+### When to Use Technology Experts?
 
-**ALWAYS use the orchestrator (via `/vg-orchestrate` or Skill `vg-master-orchestrator`) when:**
-- Task requires **multiple agents** or coordination between services
-- Implementing **TDD workflows** (test → code → verify pattern)
-- Running **security audits** (parallel scanning + synthesis)
-- Adding **detection patterns** with tests
-- **Deploying services** with health checks
-- Any task mentioning "orchestrate", "coordinate", or "multiple steps"
+**USE technology experts when:**
+- Task is domain-specific (n8n, React, Docker, etc.)
+- You need verified information from documentation
+- Task involves best practices for a specific technology
+- Multi-step workflow crossing multiple technologies
 
-**DON'T use orchestrator for:**
-- Single-file edits or simple code changes
-- Reading/analyzing existing code
-- Documentation-only updates
-- Single bash commands
+**DON'T use experts for:**
+- Simple file edits (direct Read/Edit tools faster)
+- Pure codebase exploration (use Explore agent)
+- Documentation-only updates (direct work faster)
 
-### How to Use the Orchestrator
+### How to Invoke Experts
 
-**Option 1: Slash Command (Recommended)**
-```bash
-/vg-orchestrate Add SQL injection detection pattern
-/orchestrate Run security audit
+**Option 1: Via Orchestrator**
+```
+/expert Add health check endpoint to Express API
+→ Orchestrator routes to express-expert
 ```
 
-**Option 2: Skill Invocation**
+**Option 2: Direct Task Tool Invocation**
 ```
-Use Skill tool with skill "vg-master-orchestrator"
-```
-
-**Option 3: Manual Testing**
-```bash
-cd .claude/agents/vg-master-orchestrator
-node init.js
-# Interactive CLI with commands: help, status, agents, test
+Task(
+  prompt="You are n8n-expert. [task description]",
+  subagent_type="general-purpose"
+)
 ```
 
-### Orchestrator Capabilities
-
-**10 Worker Agents Available:**
-1. `vg-workflow-business-logic` - Pattern management, rules.config.json
-2. `vg-workflow-infrastructure` - n8n JSON structure, migrations
-3. `vg-test-automation` - Test creation, execution, verification
-4. `vg-backend-api` - Express.js, JWT, ClickHouse queries
-5. `vg-frontend-ui` - React components, Tailwind CSS v4
-6. `vg-data-analytics` - ClickHouse schema, Grafana dashboards
-7. `vg-pii-detection` - Dual-language PII (Polish + English)
-8. `vg-infrastructure-deployment` - Docker orchestration, install.sh
-9. `vg-security-compliance` - Security scanning, vulnerability fixes
-10. `vg-documentation` - Documentation sync, API generation
-
-**5 Pre-configured Workflows:**
-- `PATTERN_ADDITION` - TDD approach (test → run → add → verify)
-- `PII_ENTITY_ADDITION` - Add PII entity type (analyze → config → test)
-- `SECURITY_AUDIT` - Parallel scanning (npm + secrets + ReDoS + auth)
-- `TEST_EXECUTION` - Run suite → analyze results
-- `SERVICE_DEPLOYMENT` - Build → deploy → health check
-
-### Progress Reporting
-
-The orchestrator provides **real-time progress** visible in Claude Code:
-- 🎯 Task classification with confidence scores
-- ⚙️ Agent invocation tracking
-- 📊 Progress bars for long operations
-- ✅ Success/failure indicators with timing
-- 🔄 Retry attempts tracking
-
-### Troubleshooting Orchestrator
-
-**Orchestrator won't start:**
-```bash
-# Check if .claude/package.json exists (should have "type": "commonjs")
-ls -la .claude/package.json
-
-# Test manually
-cd .claude/agents/vg-master-orchestrator
-node init.js
+**Option 3: Multi-Expert Workflow**
+For tasks requiring multiple experts, orchestrator creates progress.json:
+```
+/expert Add SQL injection detection with tests
+→ Orchestrator creates workflow
+→ vitest-expert creates test
+→ n8n-expert adds pattern
+→ vitest-expert verifies
 ```
 
-**Expected output:**
-```
-[READY] Orchestrator initialized successfully
-System Status:
-  • Agents loaded: 10
-  • Active workflows: 0
-  • Message bus ready: Yes
-```
+### Expert Directory
 
-**Agents not loading:**
-- Verify all 10 agent directories exist in `.claude/agents/vg-*/`
-- Check each has `agent.js` file
-- Review error messages in orchestrator output
+| Expert | When to Use |
+|--------|-------------|
+| `orchestrator` | Multi-expert coordination |
+| `n8n-expert` | Workflow questions, node configuration, Code nodes |
+| `vitest-expert` | Test creation, TDD, fixtures, mocking |
+| `react-expert` | Components, hooks, state management |
+| `express-expert` | APIs, middleware, routing, auth |
+| `clickhouse-expert` | Analytics queries, schema design |
+| `docker-expert` | Container issues, compose files |
+| `presidio-expert` | PII detection, entity configuration |
+| `security-expert` | OWASP issues, vulnerability assessment |
+| `git-expert` | Version control, branching, PRs |
+| `python-expert` | Flask APIs, data processing |
+| `tailwind-expert` | Styling, responsive design |
 
-**Workflows not working:**
-- All workflow definitions are in `.claude/core/workflows.js`
-- Task classifier uses same definitions (single source of truth)
-- Check task keywords match classifier patterns
+### Key Files
 
-### Configuration Files
+**Expert Definitions:**
+- `.claude/agents/[expert-name]/AGENT.md` - Expert knowledge and protocols
 
-**Core Infrastructure:**
-- `.claude/core/task-classifier.js` - Intelligent task routing
-- `.claude/core/workflows.js` - Centralized workflow definitions
-- `.claude/core/message-bus.js` - Inter-agent communication
-- `.claude/core/state-manager.js` - Workflow persistence
-- `.claude/core/progress-reporter.js` - Real-time progress tracking
+**Shared Protocols:**
+- `.claude/core/protocols.md` - Progress file, documentation, handoff protocols
 
-**Orchestrator Files:**
-- `.claude/agents/vg-master-orchestrator/orchestrator.js` - Main orchestration logic
-- `.claude/agents/vg-master-orchestrator/agent.js` - Meta-agent (can be invoked by other agents)
-- `.claude/agents/vg-master-orchestrator/workflow-executor.js` - Template execution
-- `.claude/agents/vg-master-orchestrator/init.js` - Interactive CLI
+**State:**
+- `.claude/state/progress.json` - Current workflow state (for multi-expert tasks)
 
-**Settings:**
-- `.claude/settings.local.json` - Approved commands for auto-execution
-- `.claude/package.json` - CommonJS mode (required for Node.js)
+**Commands:**
+- `.claude/commands/expert.md` - `/expert` slash command definition
 
 ---
 
@@ -1625,10 +1552,19 @@ npm test             # Run tests (in services/workflow/)
 - `services/workflow/config/unified_config.json` (246 lines, main settings)
 - Use Web UI: http://localhost/ui/config/
 
-### Skills Reference
-- Testing → `vigil-testing-e2e`
-- Analytics → `clickhouse-grafana-monitoring`
-- Patterns → `n8n-vigil-workflow`
-- Security → `vigil-security-patterns`
-- Docker → `docker-vigil-orchestration`
-- Frontend → `react-tailwind-vigil-ui`
+### Technology Expert Reference
+| Domain | Expert | Documentation |
+|--------|--------|---------------|
+| Testing | `vitest-expert` | vitest.dev, testing-library.com |
+| Analytics | `clickhouse-expert` | clickhouse.com/docs |
+| Workflows | `n8n-expert` | docs.n8n.io |
+| Security | `security-expert` | owasp.org |
+| Containers | `docker-expert` | docs.docker.com |
+| Frontend | `react-expert` | react.dev |
+| Styling | `tailwind-expert` | tailwindcss.com |
+| APIs | `express-expert` | expressjs.com |
+| PII | `presidio-expert` | microsoft.github.io/presidio |
+| Git | `git-expert` | git-scm.com |
+| Python | `python-expert` | docs.python.org |
+
+**Full expert docs:** `.claude/agents/[expert-name]/AGENT.md`
