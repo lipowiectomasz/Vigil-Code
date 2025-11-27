@@ -1,4 +1,4 @@
-# Core Protocols for Technology Expert Agents
+# Core Protocols for Technology Expert Agents v3.0
 
 This document defines shared protocols that all technology expert agents follow.
 
@@ -6,12 +6,12 @@ This document defines shared protocols that all technology expert agents follow.
 
 All multi-step tasks use `.claude/state/progress.json` for state management.
 
-### Progress File Schema
+### Progress File Schema v3.0
 
 ```json
 {
-  "version": "2.0",
-  "workflow_id": "wf-{timestamp}-{random}",
+  "version": "3.0",
+  "workflow_id": "wf-{YYYYMMDD}-{random6}",
   "created_at": "ISO8601",
   "updated_at": "ISO8601",
 
@@ -19,9 +19,17 @@ All multi-step tasks use `.claude/state/progress.json` for state management.
     "original_request": "User's original request",
     "summary": "Brief task summary",
     "project_context": {
-      "name": "Project name (from CLAUDE.md or detected)",
-      "root": "/path/to/project"
+      "name": "Project name",
+      "root": "/path/to/project",
+      "relevant_files": []
     }
+  },
+
+  "planning": {
+    "thinking": "Extended thinking about the approach...",
+    "strategy_rationale": "Why this strategy was chosen",
+    "risks": ["Potential issue 1", "Potential issue 2"],
+    "alternatives_considered": ["Alternative approach 1"]
   },
 
   "classification": {
@@ -35,24 +43,43 @@ All multi-step tasks use `.claude/state/progress.json` for state management.
   "current_step": 1,
   "total_steps": 3,
 
-  "completed_steps": [
+  "steps": [
     {
       "step": 1,
-      "expert": "n8n-expert",
-      "action": "analyze_workflow",
-      "result": {},
-      "artifacts": [],
+      "expert": "vitest-expert",
+      "model": "sonnet",
+      "action": "create_fixture",
+      "status": "completed|in_progress|pending|failed",
+      "started_at": "ISO8601",
+      "completed_at": "ISO8601",
       "duration_ms": 1200,
-      "timestamp": "ISO8601"
+      "result": {
+        "summary": "Created SQL injection test fixture",
+        "details": {}
+      },
+      "artifacts": ["tests/fixtures/sql-injection.json"],
+      "docs_consulted": ["https://vitest.dev/api/"]
+    },
+    {
+      "step": 2,
+      "expert": "n8n-expert",
+      "model": "sonnet",
+      "action": "add_pattern",
+      "status": "in_progress",
+      "context": {
+        "pattern_to_add": "sql_injection_hex",
+        "category": "CODE_INJECTION",
+        "fixture_file": "tests/fixtures/sql-injection.json"
+      }
+    },
+    {
+      "step": 3,
+      "expert": "vitest-expert",
+      "model": "sonnet",
+      "action": "run_tests",
+      "status": "pending"
     }
   ],
-
-  "next_step": {
-    "step": 2,
-    "expert": "vitest-expert",
-    "action": "create_test",
-    "context": {}
-  },
 
   "artifacts": {
     "files_created": [],
@@ -60,35 +87,118 @@ All multi-step tasks use `.claude/state/progress.json` for state management.
     "documentation_consulted": []
   },
 
+  "clean_state": {
+    "all_tests_pass": false,
+    "ready_to_merge": false,
+    "pending_issues": []
+  },
+
   "errors": []
 }
 ```
 
+### New in v3.0
+
+1. **Planning Section**: Extended thinking before execution
+2. **Model Field**: Each step specifies which model (sonnet/opus)
+3. **Clean State**: Track if work is ready to merge
+4. **Step Timing**: started_at, completed_at for metrics
+5. **Docs Consulted**: Track documentation lookups per step
+
 ### Reading Progress
+
 ```
 1. Check if .claude/state/progress.json exists
 2. If exists and status != completed:
    - Resume from current_step
-   - Use context from completed_steps
+   - Use context from completed steps
+   - Check clean_state for any pending issues
 3. If not exists or completed:
    - Create new workflow
 ```
 
 ### Updating Progress
+
 ```
-1. Update current step result in completed_steps
-2. Increment current_step
-3. Set next_step with context for next expert
-4. Update artifacts with any files created/modified
-5. Update timestamp
-6. If final step: set status = "completed"
+1. Before starting step: set status = "in_progress", started_at
+2. During step: update result.details incrementally
+3. After step:
+   - Set status = "completed", completed_at
+   - Calculate duration_ms
+   - Add artifacts created/modified
+   - Add docs consulted
+4. Set next step context for handoff
+5. If final step:
+   - Set status = "completed"
+   - Update clean_state
 ```
 
 ---
 
-## 2. Documentation Protocol
+## 2. Extended Thinking Protocol
+
+### When to Use Extended Thinking
+
+Use planning phase for:
+- Multi-expert workflows (3+ steps)
+- Tasks with potential risks
+- Unclear requirements
+- Complex coordination needed
+
+### Planning Format
+
+```json
+{
+  "planning": {
+    "thinking": "Let me analyze this task carefully. The user wants to add SQL injection detection with tests. This requires TDD workflow: 1) Create test that will fail, 2) Add pattern, 3) Verify test passes. Risk: pattern might be too broad and cause false positives. Alternative: could use single expert if we skip TDD.",
+    "strategy_rationale": "Sequential TDD ensures pattern works correctly before considering complete",
+    "risks": [
+      "Pattern might cause false positives on legitimate SQL queries",
+      "Workflow JSON might have incompatible structure"
+    ],
+    "alternatives_considered": [
+      "Single n8n-expert (rejected: no test verification)",
+      "Parallel execution (rejected: test depends on pattern)"
+    ]
+  }
+}
+```
+
+### Output Format for Planning
+
+```
+🧠 Planning Phase
+
+📋 Task Analysis:
+   [thinking summary]
+
+🎯 Strategy: [strategy] because [rationale]
+
+⚠️  Risks Identified:
+   • [risk 1]
+   • [risk 2]
+
+📝 Execution Plan:
+   1. [expert]: [action]
+   2. [expert]: [action]
+   ...
+
+▶️  Proceeding with execution...
+```
+
+---
+
+## 3. Documentation Protocol
 
 All experts follow this protocol for knowledge verification.
+
+### 3-Tier Knowledge Model
+
+| Tier | Source | Usage | Speed |
+|------|--------|-------|-------|
+| **Tier 1** | Core knowledge (in-context) | 80% of tasks | Instant |
+| **Tier 2** | Official documentation (WebFetch) | API details, configs | 1-2s |
+| **Tier 3** | Community (WebSearch) | Edge cases, workarounds | 2-5s |
 
 ### Confidence Levels
 
@@ -117,100 +227,92 @@ Fetch documentation when:
 🔍 Let me verify this in the documentation...
 [Fetch docs]
 ✅ Confirmed: [solution]
-Source: [url]
+📚 Source: [url]
 
 ## Low Confidence Response
 🔍 This requires research...
 [Fetch docs + search community]
 Based on my research: [solution]
-Sources:
+📚 Sources:
 - Official: [url]
 - Community: [url]
 ⚠️ Note: [any caveats]
 ```
 
-### Documentation Fetching
-
-```
-WebFetch(
-  url="[documentation_url]",
-  prompt="Extract [specific information needed]"
-)
-```
-
-### Community Search
-
-```
-WebSearch(
-  query="[topic] site:[community_url] OR site:github.com/[repo]"
-)
-```
-
 ---
 
-## 3. Expert Invocation Protocol
+## 4. Expert Invocation Protocol
 
-### Via Task Tool
+### Via Task Tool with Model Parameter
 
-Experts are invoked using the Task tool with focused prompts:
-
-```
+```javascript
 Task(
-  prompt="""
-  You are {expert-name}, a world-class expert in {technology}.
+  prompt: `You are ${expertName}, a world-class expert in ${technology}.
 
-  ## Current Task
-  Read .claude/state/progress.json for context.
-  Execute: {action}
+           Read .claude/agents/${expertName}/AGENT.md for your full knowledge base.
+           Read .claude/state/progress.json for workflow context.
 
-  ## Your Expertise
-  [Core knowledge areas]
+           Execute: ${action}
 
-  ## Documentation Sources
-  [Primary docs URL]
-
-  ## Instructions
-  1. Read progress file for context
-  2. Apply your expertise
-  3. If uncertain, consult documentation
-  4. Update progress file with results
-  5. Return brief summary
-  """,
-  subagent_type="general-purpose"
+           After completion:
+           1. Update progress.json with your results
+           2. Add any artifacts to the artifacts list
+           3. Record docs consulted
+           4. Return brief summary`,
+  subagent_type: "general-purpose",
+  model: "${model}"  // From expert frontmatter
 )
 ```
+
+### Model Selection
+
+| Expert | Model | Rationale |
+|--------|-------|-----------|
+| orchestrator | opus | Complex coordination, planning |
+| All others | sonnet | Fast, specialized tasks |
 
 ### Parallel Invocation
 
 When experts are independent, invoke multiple in single message:
 
+```javascript
+// Multiple Task calls in same response
+Task(prompt: "vitest-expert...", model: "sonnet")
+Task(prompt: "react-expert...", model: "sonnet")
+Task(prompt: "tailwind-expert...", model: "sonnet")
 ```
-Task(expert1_prompt, subagent_type="general-purpose")
-Task(expert2_prompt, subagent_type="general-purpose")
-Task(expert3_prompt, subagent_type="general-purpose")
-```
+
+**Requirements for parallel:**
+- Steps are independent (no data dependency)
+- Different files being modified
+- Can merge results afterwards
 
 ---
 
-## 4. Response Format Protocol
+## 5. Response Format Protocol
 
 ### Progress Reporting (Orchestrator)
 
 ```
 🎯 Task: [description]
 
+🧠 Planning: [brief strategy]
+
 📋 Classification:
    • Primary Expert: {expert}
    • Strategy: {strategy}
    • Steps: {n}
 
-🤖 Step 1/{n}: {expert-name}
+🤖 Step 1/{n}: {expert-name} (model: {model})
    ├─ ▶️  Action: {action}
    ├─ 📝 {progress message}
    └─ ✅ Completed ({duration})
 
 🤖 Step 2/{n}: {expert-name}
-   ...
+   ├─ ▶️  Action: {action}
+   ├─ 🔍 Fetching docs...
+   ├─ 📝 {progress message}
+   └─ ✅ Completed ({duration})
 
 ═══════════════════════════════════════
 ✨ Task Completed in {total_duration}
@@ -221,6 +323,10 @@ Task(expert3_prompt, subagent_type="general-purpose")
 📁 Artifacts:
    • {file1}
    • {file2}
+
+✅ Clean State:
+   • Tests: {pass/fail}
+   • Ready to merge: {yes/no}
 
 💡 Next Steps (if any):
    1. {suggestion}
@@ -238,6 +344,11 @@ Task(expert3_prompt, subagent_type="general-purpose")
 ### Solution
 {implementation details or guidance}
 
+### Code/JSON
+```[language]
+{code if any}
+```
+
 ### Artifacts
 - Created: {files}
 - Modified: {files}
@@ -251,7 +362,7 @@ Task(expert3_prompt, subagent_type="general-purpose")
 
 ---
 
-## 5. Error Handling Protocol
+## 6. Error Handling Protocol
 
 ### When Expert Encounters Error
 
@@ -276,23 +387,22 @@ Task(expert3_prompt, subagent_type="general-purpose")
 **Documentation:** {relevant docs if applicable}
 ```
 
----
+### Error Schema in progress.json
 
-## 6. Project Context Protocol
-
-### Detecting Project Context
-
-1. Check for CLAUDE.md in project root
-2. Check for package.json, docker-compose.yml, etc.
-3. Extract relevant configuration
-4. Store in progress.json task.project_context
-
-### Using Project Context
-
-- Experts read project-specific info from progress file
-- Never hardcode project-specific paths
-- Adapt solutions to project structure
-- Reference project conventions from CLAUDE.md
+```json
+{
+  "errors": [
+    {
+      "step": 2,
+      "expert": "n8n-expert",
+      "error": "Invalid JSON structure",
+      "timestamp": "ISO8601",
+      "recoverable": true,
+      "recovery_action": "Fixed malformed node definition"
+    }
+  ]
+}
+```
 
 ---
 
@@ -303,14 +413,15 @@ Task(expert3_prompt, subagent_type="general-purpose")
 When one expert hands off to another:
 
 1. **Outgoing expert:**
-   - Complete current step
-   - Document all relevant context in next_step
+   - Complete current step with full details
+   - Document all relevant context in next step
    - List artifacts created
    - Note any decisions made
+   - Record docs consulted
 
 2. **Incoming expert:**
-   - Read completed_steps for history
-   - Read next_step for immediate context
+   - Read completed steps for history
+   - Read next step for immediate context
    - Check artifacts for files to work with
    - Continue without re-doing previous work
 
@@ -318,17 +429,140 @@ When one expert hands off to another:
 
 ```json
 {
-  "next_step": {
-    "expert": "vitest-expert",
-    "action": "create_test",
-    "context": {
-      "pattern_to_test": "sql_injection_hex",
-      "expected_result": "BLOCKED",
-      "relevant_files": [
-        "services/workflow/config/rules.config.json"
-      ],
-      "notes": "Pattern added at line 245, category CODE_INJECTION"
+  "steps": [
+    {
+      "step": 1,
+      "expert": "vitest-expert",
+      "status": "completed",
+      "result": {
+        "summary": "Created test fixture",
+        "details": {
+          "test_file": "tests/e2e/sql-injection.test.js",
+          "payloads_count": 5,
+          "expected_status": "BLOCKED"
+        }
+      },
+      "artifacts": ["tests/fixtures/sql-injection.json"]
+    },
+    {
+      "step": 2,
+      "expert": "n8n-expert",
+      "status": "pending",
+      "context": {
+        "pattern_to_test": "sql_injection_hex",
+        "expected_result": "BLOCKED",
+        "test_file": "tests/e2e/sql-injection.test.js",
+        "relevant_files": [
+          "services/workflow/config/rules.config.json"
+        ],
+        "notes": "Fixture expects score >= 85 for BLOCKED status"
+      }
     }
+  ]
+}
+```
+
+---
+
+## 8. Clean State Protocol
+
+### Requirements for Clean State
+
+Before marking workflow as complete:
+
+```json
+{
+  "clean_state": {
+    "all_tests_pass": true,
+    "ready_to_merge": true,
+    "pending_issues": []
   }
 }
+```
+
+### Validation Checklist
+
+- [ ] All created files saved
+- [ ] Tests passing (if applicable)
+- [ ] No uncommitted changes that break build
+- [ ] Documentation updated if needed
+- [ ] No security vulnerabilities introduced
+
+### If Not Clean
+
+```json
+{
+  "clean_state": {
+    "all_tests_pass": false,
+    "ready_to_merge": false,
+    "pending_issues": [
+      "2 tests failing in bypass-scenarios.test.js",
+      "Need to update documentation for new pattern"
+    ]
+  }
+}
+```
+
+---
+
+## 9. YAML Frontmatter Protocol
+
+### Expert Definition Standard
+
+Each expert in `.claude/agents/{expert}/AGENT.md` starts with:
+
+```yaml
+---
+name: expert-name
+description: |
+  Brief description of expertise.
+  What this expert specializes in.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - WebFetch
+  - WebSearch
+model: sonnet  # or opus for orchestrator
+triggers:
+  - "keyword1"
+  - "keyword2"
+---
+```
+
+### Frontmatter Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Expert identifier |
+| `description` | string | Multi-line description |
+| `allowed-tools` | array | Tools this expert can use |
+| `model` | string | Preferred model (sonnet/opus) |
+| `triggers` | array | Keywords for automatic routing |
+
+### Routing Logic
+
+```python
+def route_to_expert(task_description):
+    # Load all expert frontmatters
+    experts = load_expert_configs()
+
+    # Score each expert based on trigger matches
+    scores = {}
+    for expert in experts:
+        score = sum(
+            1 for trigger in expert.triggers
+            if trigger.lower() in task_description.lower()
+        )
+        if score > 0:
+            scores[expert.name] = score
+
+    # Return highest scoring expert(s)
+    if not scores:
+        return ["orchestrator"]  # Default
+
+    max_score = max(scores.values())
+    return [e for e, s in scores.items() if s == max_score]
 ```
