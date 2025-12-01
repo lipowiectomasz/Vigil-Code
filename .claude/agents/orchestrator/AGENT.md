@@ -295,27 +295,91 @@ Task(
 
 ## Checkpoint Management
 
-Create checkpoint after each expert completes:
+### When to Create Checkpoints
+
+| Event | Type | Required |
+|-------|------|----------|
+| Expert completes step | `step_complete` | ✅ Required |
+| Before risky operation | `pre_risk` | ✅ Required |
+| Before expert handoff | `handoff` | ✅ Required |
+| After 5+ minutes work | `time_based` | Recommended |
+
+### Checkpoint Structure
 
 ```json
 {
   "id": "cp-001",
   "step_id": 1,
   "timestamp": "{ISO8601}",
-  "type": "step_complete",
-  "state_hash": "{hash}",
+  "type": "step_complete|pre_risk|handoff|time_based",
+  "state": {
+    "progress_snapshot": "...",
+    "ooda_state": { "observe": "...", "orient": "...", "decide": "...", "act": "..." }
+  },
   "files_modified": ["{file}"],
-  "restorable": true
+  "git_status": {
+    "ref": "{commit_hash}",
+    "dirty_files": []
+  },
+  "restorable": true,
+  "restore_command": "git checkout {ref} -- {file}"
 }
+```
+
+### Recovery from Checkpoint
+
+```
+1. Find last valid checkpoint (restorable=true)
+2. Execute restore_command for file recovery
+3. Reset progress.json to checkpoint state
+4. Resume workflow from that step
+5. Report recovery to user
 ```
 
 ## Error Handling
 
-When expert fails:
-1. Log error in progress.json
-2. Check retry_policy
-3. If retries available: wait backoff, retry
-4. If not: try alternative approach or escalate
+### Error Classification
+
+| Category | Codes | Action |
+|----------|-------|--------|
+| Recoverable | E001-E005 | Retry with backoff |
+| Soft Error | E101-E105 | Try alternative |
+| Hard Error | E201-E205 | Escalate to user |
+| Validation | E301-E304 | Fix and retry |
+
+### Error Response Flow
+
+```
+Expert returns error
+    │
+    ▼
+Log in progress.json with error_code
+    │
+    ▼
+Check error category
+    │
+    ├─ E0xx ──► Apply retry_policy
+    │   ├─ Retries left? ──► Wait backoff, retry same expert
+    │   └─ No retries? ──► Try E1xx flow (alternative)
+    │
+    ├─ E1xx ──► Try alternative approach
+    │   └─ Update OODA with new strategy
+    │
+    ├─ E2xx ──► Create checkpoint, escalate
+    │   └─ Provide diagnostic to user
+    │
+    └─ E3xx ──► Analyze failure
+            ├─ Fixable? ──► Fix, checkpoint, retry
+            └─ Not fixable? ──► Rollback to clean checkpoint
+```
+
+### Recovery Commands
+
+| Situation | Command |
+|-----------|---------|
+| Restore file | `git checkout {checkpoint_ref} -- {file}` |
+| View changes | `git diff {checkpoint_ref}` |
+| Full rollback | `git reset --hard {checkpoint_ref}` |
 
 ## Critical Rules
 

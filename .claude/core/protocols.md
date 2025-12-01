@@ -608,15 +608,74 @@ Task(prompt: "tailwind-expert: add styles...", model: "sonnet")
 }
 ```
 
-### 8.3 Recovery from Checkpoint
+### 8.3 Recovery Procedures
+
+#### Procedure 1: Tool Failure Recovery
 
 ```
-1. Identify last valid checkpoint
-2. Check if restorable == true
-3. Execute restore_command if file recovery needed
-4. Reset progress.json to checkpoint state
-5. Resume from that step
+Tool call fails with error
+    │
+    ▼
+1. Log error in progress.json
+2. Check error category (E0xx/E1xx/E2xx/E3xx)
+    │
+    ├── E0xx (Recoverable) ──► Apply retry policy
+    │   └── If max_retries exceeded ──► Try alternative approach
+    │
+    ├── E1xx (Soft Error) ──► Use alternative tool/approach
+    │   └── Update OODA with new orient
+    │
+    ├── E2xx (Hard Error) ──► Create checkpoint, escalate to user
+    │
+    └── E3xx (Validation) ──► Analyze failure, apply fix, retry
 ```
+
+#### Procedure 2: Expert Timeout Recovery
+
+```
+Expert timeout detected
+    │
+    ▼
+1. Save current OODA state to checkpoint
+2. Log timeout in progress.json
+3. Check what was completed
+    │
+    ├── Partial work done? ──► Create checkpoint, resume
+    │
+    └── No progress? ──► Rollback to last checkpoint
+                              │
+                              ▼
+                        Try alternative approach
+```
+
+#### Procedure 3: Validation Failure Recovery
+
+```
+Validation failed (tests, lint, build)
+    │
+    ▼
+1. Save failing state to checkpoint
+2. Analyze failure cause (OODA observe)
+3. Identify fix
+    │
+    ├── Fixable? ──► Apply fix, create checkpoint, re-validate
+    │   │
+    │   └── Still failing? ──► Escalate with diagnostic
+    │
+    └── Not fixable? ──► Rollback to last clean checkpoint
+                              │
+                              ▼
+                        Report failure to user
+```
+
+#### Recovery Command Reference
+
+| Scenario | Command | Example |
+|----------|---------|---------|
+| Restore file | `git checkout {ref} -- {file}` | `git checkout abc123 -- src/api.ts` |
+| Restore all | `git checkout {ref}` | `git checkout abc123` |
+| View diff | `git diff {checkpoint_ref}` | `git diff cp-001-ref` |
+| List changes | `git status --porcelain` | Check modified files |
 
 ---
 
@@ -635,15 +694,46 @@ Task(prompt: "tailwind-expert: add styles...", model: "sonnet")
 }
 ```
 
-### 9.2 Error Categories
+### 9.2 Error Taxonomy
 
-| Category | Code | Retry? | Strategy |
-|----------|------|--------|----------|
-| Network timeout | E001 | Yes | Exponential backoff |
-| Rate limit | E002 | Yes | Wait + retry |
-| File not found | E101 | No | Alternative approach |
-| Permission denied | E201 | No | Escalate to user |
-| Validation failed | E301 | Maybe | Fix and retry |
+#### Recoverable Errors (Retry)
+
+| Code | Error | Retry Strategy | Max Retries |
+|------|-------|----------------|-------------|
+| E001 | Network timeout | Exponential backoff (5s, 15s, 45s) | 3 |
+| E002 | Rate limit | Wait + retry after delay | 3 |
+| E003 | Transient file lock | Wait 5s, retry | 3 |
+| E004 | WebFetch 5xx | Exponential backoff | 3 |
+| E005 | Service unavailable | Wait 30s, retry | 2 |
+
+#### Soft Errors (Alternative Approach)
+
+| Code | Error | Alternative | Example |
+|------|-------|-------------|---------|
+| E101 | File not found | Search with Glob | `Glob("**/*.json")` |
+| E102 | Pattern not found | Broaden search | Remove constraints |
+| E103 | WebFetch 404 | Try WebSearch | Search for similar docs |
+| E104 | Tool not available | Use alternative tool | Edit → Write new file |
+| E105 | Partial match | Expand context | Read more lines |
+
+#### Hard Errors (Escalate)
+
+| Code | Error | Action | User Message |
+|------|-------|--------|--------------|
+| E201 | Permission denied | Halt + report | "Cannot access file, check permissions" |
+| E202 | Out of tokens | Save state, stop | "Token limit reached, saved progress" |
+| E203 | Conflicting edits | Request resolution | "File changed externally, merge needed" |
+| E204 | Security violation | Halt immediately | "Security constraint violated" |
+| E205 | Dependency missing | Report to user | "Required dependency not installed" |
+
+#### Validation Errors (Fix and Retry)
+
+| Code | Error | Action | Example |
+|------|-------|--------|---------|
+| E301 | Test failure | Analyze + fix | Run test, read failure, fix code |
+| E302 | Lint failure | Auto-fix | `npm run lint:fix` |
+| E303 | Type error | Fix types | Update types, re-check |
+| E304 | Build failure | Debug + fix | Read build output, fix issue |
 
 ### 9.3 Retry Flow
 
