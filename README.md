@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blue.svg)](https://claude.ai/code)
-[![Experts: 16](https://img.shields.io/badge/Experts-16-green.svg)](#technology-experts-16)
+[![Experts: 17](https://img.shields.io/badge/Experts-17-green.svg)](#technology-experts-17)
 [![Version: 3.1](https://img.shields.io/badge/Version-3.1-brightgreen.svg)]()
 
 > **Documentation available in:** [Polski (Polish)](docs/README.pl.md)
@@ -156,7 +156,7 @@ Claude Code:
 
 ---
 
-## Technology Experts (16)
+## Technology Experts (17)
 
 Each expert is a `.claude/agents/[name]/AGENT.md` file with YAML frontmatter + Markdown content.
 
@@ -178,6 +178,49 @@ Each expert is a `.claude/agents/[name]/AGENT.md` file with YAML frontmatter + M
 | `helm-expert` | sonnet | helm, chart, values.yaml | Charts, releases, templating |
 | `nats-expert` | sonnet | nats, jetstream, stream | Messaging, queues, pub/sub |
 | `redis-expert` | sonnet | redis, cache, rate limit | Caching, sessions, rate limiting |
+| `code-audit-expert` | **opus** | audit, code quality, review | Code auditing, quality assessment |
+
+---
+
+## Code Audit System
+
+Run comprehensive code audits using the `/audit-code` command:
+
+```bash
+/audit-code                      # Full audit (10 categories)
+/audit-code --quick              # Security + Tests + Tech Debt only
+/audit-code --category=security  # Single category deep-dive
+```
+
+### 10 Audit Categories
+
+| Category | Points | Focus |
+|----------|--------|-------|
+| Structure | 10 | Architecture, module design |
+| Readability | 10 | Code quality, naming, style |
+| Testability | 10 | Coverage, test quality |
+| CI/CD | 5 | Pipelines, automation |
+| Security | 10 | OWASP, vulnerabilities |
+| Observability | 5 | Logging, monitoring |
+| Tech Debt | 10 | TODOs, code smells |
+| Documentation | 5 | API docs, README |
+| Performance | 5 | Queries, caching |
+| DDD | 5 | Domain modeling |
+
+### Rating System
+
+- 🟢 **OK** - Meets professional standards
+- 🟡 **DO_POPRAWY** - Fix this sprint
+- 🔴 **KRYTYCZNE** - Immediate action required
+
+### Output Files
+
+- `.claude/state/audit-report.json` - Machine-readable report
+- `docs/AUDIT_SUMMARY.md` - Human-readable summary
+
+### Philosophy: 5-10 Leverage Points, Not 200 Issues
+
+The audit system focuses on identifying **high-leverage improvement opportunities** rather than overwhelming you with hundreds of minor issues. Each audit produces a prioritized list of 5-10 actionable recommendations sorted by Impact × Effort.
 
 ---
 

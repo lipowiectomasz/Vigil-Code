@@ -187,7 +187,7 @@ Workflows must end in clean state (tests pass, ready to merge):
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Available Experts (16)
+## Available Experts (17)
 
 | Expert | Model | Triggers | Specialization |
 |--------|-------|----------|----------------|
@@ -207,6 +207,7 @@ Workflows must end in clean state (tests pass, ready to merge):
 | `helm-expert` | sonnet | helm, chart, values.yaml | Charts, releases, templating |
 | `nats-expert` | sonnet | nats, jetstream, stream | Messaging, queues |
 | `redis-expert` | sonnet | redis, cache, rate limit | Caching, sessions |
+| `code-audit-expert` | opus | audit, code quality, review | Code auditing, quality assessment |
 
 ## How It Works
 
@@ -284,6 +285,8 @@ Task(
 │   ├── n8n-expert/        # n8n automation (sonnet)
 │   │   └── AGENT.md
 │   ├── react-expert/      # React development (sonnet)
+│   │   └── AGENT.md
+│   ├── code-audit-expert/ # Code auditing (opus)
 │   │   └── AGENT.md
 │   ├── [9 more experts...]
 ├── core/

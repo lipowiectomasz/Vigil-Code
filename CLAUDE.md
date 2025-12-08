@@ -164,6 +164,7 @@ Co-Authored-By: Claude <...>   # ← FORBIDDEN
 | `helm-expert` | Helm | Charts, releases, templating |
 | `nats-expert` | NATS | Messaging, JetStream, queues |
 | `redis-expert` | Redis | Caching, rate limiting |
+| `code-audit-expert` | Code Auditing | Quality assessment, tech debt, reviews |
 
 **Decision Tree:**
 
@@ -759,6 +760,7 @@ The agent system has been redesigned from project-specific agents to **universal
 | `helm-expert` | Helm | Charts, releases, values, templating |
 | `nats-expert` | NATS | JetStream, streams, consumers, queues |
 | `redis-expert` | Redis | Caching, rate limiting, sessions |
+| `code-audit-expert` | Code Auditing | Quality assessment, tech debt, reviews |
 
 ### 3-Tier Knowledge Model
 

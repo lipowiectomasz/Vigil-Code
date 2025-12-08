@@ -47,6 +47,7 @@ Force routing to specific expert with bracket syntax:
 | `helm-expert` | helm, chart, values.yaml, Chart.yaml, release, repository, template, helm install, helm upgrade, subchart, helmfile | sonnet |
 | `nats-expert` | nats, jetstream, message queue, stream, consumer, pub/sub, request-reply, exactly-once, ack, work queue, durable | sonnet |
 | `redis-expert` | redis, cache, rate limit, session, sorted set, TTL, cluster, sentinel, lua script, pub/sub, expiration | sonnet |
+| `code-audit-expert` | audit, code quality, code review, assessment, inspection, technical debt, quality, review, maintainability | opus |
 
 ## Execution Protocol
 
