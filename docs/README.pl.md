@@ -1,11 +1,12 @@
-# Vigil-Code: Technology Expert Agent System v3.1
+# Vigil-Code: Technology Expert Agent System v3.2
 
 **Praktyczny framework agentów-ekspertów technologicznych dla Claude Code. System umożliwia tworzenie wyspecjalizowanych asystentów AI z wiedzą domenową, dostępem do dokumentacji i protokołami odtwarzania stanu.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blue.svg)](https://claude.ai/code)
-[![Experts: 16](https://img.shields.io/badge/Experts-16-green.svg)](#eksperci-technologiczni-16)
-[![Version: 3.1](https://img.shields.io/badge/Version-3.1-brightgreen.svg)]()
+[![Experts: 17](https://img.shields.io/badge/Experts-17-green.svg)](#eksperci-technologiczni-17)
+[![Skills: 22](https://img.shields.io/badge/Skills-22-orange.svg)](#skills-kontekst-domenowy)
+[![Version: 3.2](https://img.shields.io/badge/Version-3.2-brightgreen.svg)]()
 
 ---
 
@@ -85,9 +86,9 @@ cp CLAUDE.md /path/to/your/project/
 ```
 your-project/
 ├── .claude/
-│   ├── agents/           # 16 ekspertów technologicznych
+│   ├── agents/           # 17 ekspertów technologicznych
 │   ├── commands/         # 23 komendy slash
-│   ├── skills/           # 18 kontekstów domenowych
+│   ├── skills/           # 22 konteksty domenowe
 │   ├── core/             # Protokoły i schematy
 │   │   ├── protocols.md  # OODA, checkpointy, błędy
 │   │   └── tool-schema.md # Kategorie narzędzi
@@ -154,7 +155,7 @@ Claude Code:
 
 ---
 
-## Eksperci technologiczni (16)
+## Eksperci technologiczni (17)
 
 Każdy ekspert to plik `.claude/agents/[nazwa]/AGENT.md` z YAML frontmatter + treścią Markdown.
 
@@ -176,6 +177,7 @@ Każdy ekspert to plik `.claude/agents/[nazwa]/AGENT.md` z YAML frontmatter + tr
 | `helm-expert` | sonnet | helm, chart, values.yaml | Charts, releases, templating |
 | `nats-expert` | sonnet | nats, jetstream, stream | Messaging, kolejki, pub/sub |
 | `redis-expert` | sonnet | redis, cache, rate limit | Caching, sesje, rate limiting |
+| `code-audit-expert` | **opus** | audit, code quality, review | Code auditing, ocena jakości |
 
 ---
 
@@ -965,5 +967,5 @@ Copyright (c) 2025 Tomasz Bartel
 ---
 
 **Status:** Production Ready
-**Wersja:** 3.1.0
-**Ostatnia aktualizacja:** 2025-12-02
+**Wersja:** 3.2.0
+**Ostatnia aktualizacja:** 2025-12-09

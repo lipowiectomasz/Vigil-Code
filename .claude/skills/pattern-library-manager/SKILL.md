@@ -1,165 +1,264 @@
 ---
 name: pattern-library-manager
-description: Expert management of rules.config.json (829 lines, 34 categories). Use for pattern validation, ReDoS protection, scoring algorithms, false positive tracking, and pattern optimization via Web UI.
-version: 1.6.11
+description: Expert management of detection patterns in Vigil Guard v2.0.0. Use for heuristics-service pattern files (18 JSON files), unified_config.json categories, ReDoS protection, scoring algorithms, and pattern optimization.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Pattern Library Manager
+# Pattern Library Manager (v2.0.0)
 
 ## Overview
-Expert management of rules.config.json (829 lines, 34 threat categories) including pattern validation, ReDoS protection, scoring algorithms, and false positive tracking.
+
+Expert management of detection patterns across the Vigil Guard v2.0.0 3-branch parallel detection architecture. Patterns are now distributed across multiple components.
+
+## v2.0.0 Architecture Change
+
+### REMOVED: rules.config.json
+
+**OLD (v1.x):** Single 829-line rules.config.json with 34 categories
+**NEW (v2.0.0):** Distributed pattern system:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Heuristics Service | `services/heuristics-service/patterns/` | 18 JSON pattern files |
+| Unified Config | `services/workflow/config/unified_config.json` | Category configs (303 lines) |
+| PII Config | `services/workflow/config/pii.conf` | PII patterns (361 lines) |
+| Semantic Service | ClickHouse vectors | Embedding similarity |
 
 ## When to Use This Skill
-- Managing detection patterns in rules.config.json (direct editing with TDD workflow)
+
+- Managing detection patterns in heuristics-service (18 JSON files)
+- Configuring category weights in unified_config.json
 - Validating regex patterns for ReDoS vulnerabilities
-- Calculating base_weight + multiplier for new patterns
+- Understanding 3-branch scoring algorithms
 - Tracking false positive rates per category
 - Analyzing pattern effectiveness metrics
 - Optimizing pattern performance
 
-## Configuration Editing Guidelines
+## Pattern File Locations (v2.0.0)
 
-### ✅ **GUI-Editable (Tuning Parameters)**
+### Heuristics Service Patterns (18 files)
 
-**Use Web UI for these tuning knobs:**
-http://localhost/ui/config/ → Detection Tuning
-
-- Decision thresholds (ALLOW_MAX, SL_MIN, SL_MAX, SH_MIN, SH_MAX, BLOCK_MIN)
-- Bloom filter settings (BLOOM_M, BLOOM_K, BLOOM_PHRASE_BONUS)
-- Performance toggles (PII_ENABLED, CONTEXT_ENHANCEMENT)
-
-**Reason:** These are safe tuning parameters that don't require tests.
-
-**IMPORTANT:** The "Detection Tuning" section in Web UI only exposes 6 threshold variables. It does NOT provide access to the `patterns` arrays in rules.config.json!
-
-### ❌ **Code-Editable (Detection Logic)**
-
-**Edit directly for these business logic structures:**
-
-**1. Detection patterns** in rules.config.json (829 lines, 44 categories)
-```json
-{
-  "SQL_XSS_ATTACKS": {
-    "base_weight": 50,
-    "multiplier": 1.3,
-    "patterns": [
-      "\\b(SELECT|INSERT|UPDATE|DELETE)\\b.*\\b(FROM|INTO|SET)\\b",
-      // ... add new patterns HERE
-    ]
-  }
-}
+```
+services/heuristics-service/patterns/
+├── boundary-patterns.json          # System boundary markers
+├── divider-patterns.json           # Text divider patterns
+├── divider-patterns-manual.json    # Manual divider rules
+├── emoji-mappings.json             # Emoji obfuscation maps
+├── extraction-summary.json         # Data extraction patterns
+├── homoglyphs.json                 # Unicode lookalike characters
+├── injection-patterns.json         # Injection attack patterns
+├── leet-speak.json                 # Leet speak mappings
+├── multi-char-sequences.json       # Multi-character substitutions
+├── narrative-patterns.json         # Narrative injection patterns
+├── roleplay-patterns.json          # Roleplay attack patterns
+├── roleplay-patterns-manual.json   # Manual roleplay rules
+├── security-keywords.json          # Security-related keywords
+├── social-engineering-patterns.json # Social engineering markers
+├── system-markers.json             # System prompt markers
+├── whisper-patterns.json           # Whisper attack patterns
+├── whisper-patterns-manual.json    # Manual whisper rules
+└── zero-width.json                 # Zero-width character detection
 ```
 
-**2. Leet speak mappings** in normalize.conf (150+ mappings)
-- `{ "4": "a", "3": "e", "1": "i", "0": "o", ... }`
+### Heuristics Service Config
 
-**3. Homoglyph mappings** in normalize.conf (200+ Unicode lookalikes)
-- `{ "а": "a", "е": "e", "о": "o", ... }` (Cyrillic → Latin)
-
-**4. PII regex fallbacks** in pii.conf (13 patterns)
-- PESEL, NIP, CREDIT_CARD, etc.
-
-**Reason:**
-- Requires TDD workflow (test → pattern → verify)
-- Complex structure (nested JSON, regex patterns)
-- Security validation needed (ReDoS protection)
-- Part of codebase (committed with tests)
-
-**NOT in Web UI** - these structures are too complex for GUI forms and have no mapping in variables.json.
-
-### 🔧 **Pattern Addition Workflow**
-
-When this skill is invoked to add a detection pattern:
-
-```bash
-# 1. Guide user to create test FIRST
-echo "Create test in services/workflow/tests/e2e/bypass-scenarios.test.js"
-
-# 2. Run test (should FAIL)
-cd services/workflow && npm test
-
-# 3. Edit rules.config.json DIRECTLY (not via GUI!)
-vim services/workflow/config/rules.config.json
-# Add pattern to appropriate category's patterns array
-
-# 4. Re-run test (should PASS)
-npm test
-
-# 5. Commit together
-git add tests/ config/
-git commit -m "feat(detect): add <category> pattern with TDD tests"
+```
+services/heuristics-service/config/default.json
 ```
 
-**CRITICAL:** Web UI cannot edit patterns arrays! Only thresholds are in GUI.
-
-## Rules.config.json Structure
-
+**Detector weights:**
 ```json
 {
-  "categories": {
-    "SQL_XSS_ATTACKS": {
-      "base_weight": 50,
-      "multiplier": 1.3,
-      "patterns": [
-        "\\b(SELECT|INSERT|UPDATE|DELETE)\\b.*\\b(FROM|INTO|SET)\\b",
-        "\\bDROP\\s+(TABLE|DATABASE)",
-        "0x[0-9a-fA-F]+.*SELECT"
-      ]
+  "detection": {
+    "weights": {
+      "obfuscation": 0.25,
+      "structure": 0.20,
+      "whisper": 0.25,
+      "entropy": 0.15,
+      "security": 0.15
+    },
+    "thresholds": {
+      "low_max": 30,
+      "medium_max": 65
     }
   }
 }
 ```
 
-### Scoring Algorithm
+### Unified Config (v5.0.0, 303 lines)
+
+```
+services/workflow/config/unified_config.json
+```
+
+**Category configuration (merged from old rules.config.json):**
+```json
+{
+  "detection": {
+    "categories": {
+      "SQL_XSS_ATTACKS": { "enabled": true, "weight": 50 },
+      "JAILBREAK_ATTEMPT": { "enabled": true, "weight": 80 },
+      "PROMPT_LEAK": { "enabled": true, "weight": 70 }
+    }
+  }
+}
+```
+
+## Configuration Editing Guidelines
+
+### Web UI Editable (via http://localhost/ui/config/)
+
+- Decision thresholds (ALLOW_MAX, SANITIZE thresholds)
+- Category enable/disable toggles
+- Performance settings
+- PII detection settings
+
+### Direct Code Edit (TDD workflow required)
+
+1. **Heuristics pattern files** - `services/heuristics-service/patterns/*.json`
+2. **Detector configurations** - `services/heuristics-service/config/default.json`
+3. **PII regex fallbacks** - `services/workflow/config/pii.conf`
+4. **Leet speak mappings** - `services/heuristics-service/patterns/leet-speak.json`
+5. **Homoglyph mappings** - `services/heuristics-service/patterns/homoglyphs.json`
+
+**Reason:** Complex structures requiring TDD workflow and security validation.
+
+## Pattern Addition Workflow (v2.0.0)
+
+### Adding Heuristics Pattern
+
+```bash
+cd services/workflow
+
+# 1. Create test first
+cat > tests/fixtures/my-attack.json << 'EOF'
+{
+  "prompt": "malicious payload here",
+  "expected": "BLOCKED"
+}
+EOF
+
+# 2. Run test (should FAIL)
+npm test -- vigil-detection.test.js
+
+# 3. Edit appropriate pattern file
+# For injection attacks:
+vim services/heuristics-service/patterns/injection-patterns.json
+
+# For whisper attacks:
+vim services/heuristics-service/patterns/whisper-patterns.json
+
+# 4. Restart heuristics service
+docker-compose restart heuristics-service
+
+# 5. Re-run test (should PASS)
+npm test
+
+# 6. Commit together
+git add tests/ services/heuristics-service/
+git commit -m "feat(detect): add <category> pattern with TDD tests"
+```
+
+### Adding Semantic Pattern
+
+Semantic patterns are vector embeddings stored in ClickHouse:
+
+```bash
+# 1. Add attack example to embedding corpus
+echo '{"text": "attack example", "category": "INJECTION", "is_attack": true}' >> \
+  services/semantic-service/corpus/attacks.jsonl
+
+# 2. Re-index embeddings
+docker-compose exec semantic-service python reindex.py
+
+# 3. Verify with test
+npm test -- vigil-detection.test.js
+```
+
+## 3-Branch Scoring Architecture
+
+### Branch Weights
+
+| Branch | Weight | Service | Port |
+|--------|--------|---------|------|
+| A (Heuristics) | 30% | heuristics-service | 5005 |
+| B (Semantic) | 35% | semantic-service | 5006 |
+| C (LLM Guard) | 35% | prompt-guard-api | 8000 |
+
+### Final Score Calculation
 
 ```javascript
-totalScore = 0;
-for (category in detectedCategories) {
-  categoryScore = base_weight * multiplier * patternMatchCount;
-  totalScore += categoryScore;
+// Arbiter v2 weighted fusion
+const weights = { A: 0.30, B: 0.35, C: 0.35 };
+const finalScore =
+  (branchA.score * weights.A) +
+  (branchB.score * weights.B) +
+  (branchC.score * weights.C);
+
+// Critical signal override
+if (branchA.critical_signals?.obfuscation_heavy ||
+    branchC.critical_signals?.llm_attack) {
+  // Force BLOCK regardless of score
 }
-
-// Decision thresholds:
-// 0-29: ALLOW
-// 30-64: SANITIZE_LIGHT
-// 65-84: SANITIZE_HEAVY
-// 85+: BLOCK
 ```
 
-## Common Tasks
+### Decision Matrix
 
-### Task 1: Add New Pattern
+| Score Range | Action | Severity |
+|------------|--------|----------|
+| 0-29 | ALLOW | Clean |
+| 30-64 | SANITIZE_LIGHT | Low |
+| 65-84 | SANITIZE_HEAVY | Medium |
+| 85-100 | BLOCK | Critical |
 
-**Via Web UI:**
-1. Navigate to http://localhost/ui/config/
-2. Detection Tuning → rules.config.json
-3. Find category or create new
-4. Add pattern to `patterns` array
-5. Set `base_weight` (30-60 typical)
-6. Set `multiplier` (1.0-2.0)
-7. Preview changes → Save
+## Heuristics Detectors (Branch A)
 
-**Testing:**
-```bash
-# Run test suite
-cd services/workflow && npm test
+### 1. Obfuscation Detector (25% weight)
 
-# Check ClickHouse for detection rate
-docker exec vigil-clickhouse clickhouse-client -q "
-  SELECT
-    arrayJoin(mapKeys(score_breakdown)) as category,
-    count() as detections
-  FROM n8n_logs.events_processed
-  WHERE timestamp > now() - INTERVAL 7 DAY
-  GROUP BY category
-  ORDER BY detections DESC
-"
-```
+**Detects:**
+- Zero-width characters (patterns/zero-width.json)
+- Homoglyphs (patterns/homoglyphs.json)
+- Base64/Hex encoding
+- Mixed script attacks
+- Leet speak (patterns/leet-speak.json)
 
-### Task 2: ReDoS Validation
+### 2. Structure Detector (20% weight)
 
-**Dangerous Patterns (AVOID):**
+**Detects:**
+- Code fence abuse
+- Boundary patterns (patterns/boundary-patterns.json)
+- Newline manipulation
+- Segment variance anomalies
+
+### 3. Whisper Detector (25% weight)
+
+**Detects:**
+- Whisper patterns (patterns/whisper-patterns.json)
+- Divider patterns (patterns/divider-patterns.json)
+- Roleplay attacks (patterns/roleplay-patterns.json)
+- Question repetition
+
+### 4. Entropy Detector (15% weight)
+
+**Detects:**
+- High Shannon entropy
+- Bigram anomalies
+- Character class diversity
+- Language detection anomalies
+
+### 5. Security Detector (15% weight)
+
+**Detects:**
+- SQL injection patterns (patterns/injection-patterns.json)
+- XSS patterns
+- Command injection
+- Privilege escalation
+
+## ReDoS Validation
+
+### Dangerous Patterns (AVOID)
+
 ```regex
 ❌ ^(a+)+$              # Catastrophic backtracking
 ❌ (x+x+)+y            # Nested quantifiers
@@ -167,7 +266,8 @@ docker exec vigil-clickhouse clickhouse-client -q "
 ❌ (.*){10,}           # Excessive repetition
 ```
 
-**Safe Alternatives:**
+### Safe Alternatives
+
 ```regex
 ✅ ^a+$                # Simple quantifier
 ✅ ^[a-z]{1,100}$      # Bounded repetition
@@ -175,14 +275,14 @@ docker exec vigil-clickhouse clickhouse-client -q "
 ✅ ^a*b                # Greedy but safe
 ```
 
-**Validation Script:**
+### Validation Script
+
 ```bash
 #!/bin/bash
-# scripts/validate-regex-redos.sh
+# Test pattern for ReDoS vulnerability
 
 PATTERN="$1"
 
-# Test with exponentially growing input
 for size in 10 100 1000 10000; do
   INPUT=$(printf 'a%.0s' $(seq 1 $size))
 
@@ -191,7 +291,7 @@ for size in 10 100 1000 10000; do
   EXIT_CODE=$?
   END=$(date +%s%N)
 
-  DURATION=$(((END - START) / 1000000))  # ms
+  DURATION=$(((END - START) / 1000000))
 
   if [ $EXIT_CODE -eq 124 ]; then
     echo "❌ REDOS DETECTED: Timeout at size $size"
@@ -204,222 +304,130 @@ done
 echo "✅ Pattern is safe"
 ```
 
-### Task 3: Pattern Effectiveness Analysis
+## Pattern Effectiveness Analysis
 
-**Query ClickHouse:**
+### ClickHouse Queries
+
 ```sql
--- Detection rate per category (last 30 days)
+-- Branch performance comparison
 SELECT
-  category,
-  count() as total_detections,
-  countIf(final_status = 'BLOCKED') as blocked,
-  countIf(final_status LIKE 'SANITIZE%') as sanitized,
-  round(blocked * 100.0 / total_detections, 2) as block_rate
-FROM (
-  SELECT
-    arrayJoin(mapKeys(score_breakdown)) as category,
-    final_status
-  FROM n8n_logs.events_processed
-  WHERE timestamp > now() - INTERVAL 30 DAY
-)
-GROUP BY category
-ORDER BY total_detections DESC
+  arbiter_decision,
+  avg(branch_a_score) as avg_heuristics,
+  avg(branch_b_score) as avg_semantic,
+  avg(branch_c_score) as avg_llm_guard,
+  count() as total
+FROM n8n_logs.events_processed
+WHERE timestamp > now() - INTERVAL 7 DAY
+GROUP BY arbiter_decision;
+
+-- Detection rate by branch
+SELECT
+  CASE
+    WHEN branch_a_score > branch_b_score AND branch_a_score > branch_c_score THEN 'Heuristics'
+    WHEN branch_b_score > branch_c_score THEN 'Semantic'
+    ELSE 'LLM Guard'
+  END as primary_detector,
+  count() as detections
+FROM n8n_logs.events_processed
+WHERE arbiter_decision != 'ALLOW'
+  AND timestamp > now() - INTERVAL 7 DAY
+GROUP BY primary_detector;
+
+-- False positive analysis
+SELECT
+  original_input,
+  branch_a_score,
+  branch_b_score,
+  branch_c_score,
+  arbiter_decision
+FROM n8n_logs.events_processed
+WHERE arbiter_decision = 'BLOCK'
+  AND timestamp > now() - INTERVAL 1 DAY
+ORDER BY timestamp DESC
 LIMIT 20;
 ```
 
-**False Positive Rate:**
-```sql
--- Reported false positives per category
-SELECT
-  category,
-  count() as reports,
-  round(count() * 100.0 / (SELECT count() FROM events_processed), 2) as fp_rate
-FROM false_positive_reports
-WHERE timestamp > now() - INTERVAL 30 DAY
-GROUP BY category
-ORDER BY reports DESC;
+## Troubleshooting
+
+### Pattern Not Triggering
+
+```bash
+# 1. Test heuristics service directly
+curl -X POST http://localhost:5005/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "test payload", "request_id": "debug-123"}'
+
+# 2. Check service logs
+docker logs vigil-heuristics-service 2>&1 | tail -50
+
+# 3. Verify pattern file is loaded
+docker exec vigil-heuristics-service cat /app/patterns/injection-patterns.json | jq .
+
+# 4. Test pattern with grep
+echo "test payload" | grep -P "your_pattern"
 ```
 
-### Task 4: Base Weight Calibration
+### Branch Degraded
 
-**Guidelines:**
-```yaml
-base_weight_ranges:
-  30-40: Low severity (URL encoding, common keywords)
-  41-60: Medium severity (SQL patterns, obfuscation)
-  61-80: High severity (jailbreaks, privilege escalation)
-  81-100: Critical (GODMODE, destructive commands)
+```bash
+# Check branch health
+curl http://localhost:5005/health  # Heuristics
+curl http://localhost:5006/health  # Semantic
+curl http://localhost:8000/health  # LLM Guard
 
-multiplier_ranges:
-  1.0-1.2: Common variations
-  1.3-1.5: Moderate concern
-  1.6-2.0: High concern
-  2.0+: Critical (rare, requires approval)
+# Check timing in ClickHouse
+docker exec vigil-clickhouse clickhouse-client -q "
+  SELECT
+    avg(branch_a_timing_ms) as avg_a,
+    avg(branch_b_timing_ms) as avg_b,
+    avg(branch_c_timing_ms) as avg_c
+  FROM n8n_logs.events_processed
+  WHERE timestamp > now() - INTERVAL 1 HOUR
+"
 ```
 
-**Example Calculation:**
-```javascript
-// Pattern: "DROP TABLE users"
-base_weight: 70        // High severity SQL
-multiplier: 1.5        // Database destruction
-total: 70 * 1.5 = 105  // BLOCKED (>85)
+### False Positives
 
-// Pattern: "SELECT * FROM users"
-base_weight: 40        // Medium SQL read
-multiplier: 1.0        // No destruction
-total: 40 * 1.0 = 40   // SANITIZE_LIGHT (30-64)
-```
-
-### Task 5: Pattern Optimization
-
-**Combine Similar Patterns:**
-```regex
-❌ INEFFICIENT (3 patterns):
-  "\\bSELECT\\b.*\\bFROM\\b"
-  "\\bINSERT\\b.*\\bINTO\\b"
-  "\\bUPDATE\\b.*\\bSET\\b"
-
-✅ EFFICIENT (1 pattern):
-  "\\b(SELECT|INSERT|UPDATE)\\b.*(FROM|INTO|SET)\\b"
-```
-
-**Anchor Patterns:**
-```regex
-❌ SLOW: "password"              # Scans entire string
-✅ FAST: "\\bpassword\\b"        # Word boundary optimization
-```
-
-**Case Insensitivity:**
-```regex
-❌ VERBOSE: "(DROP|drop|Drop|dRoP)"
-✅ CLEAN: "DROP"  # Use case-insensitive flag in n8n
-```
-
-## 34 Detection Categories
-
-### Critical (6)
-- CRITICAL_INJECTION
-- JAILBREAK_ATTEMPT
-- CONTROL_OVERRIDE
-- PROMPT_LEAK_ATTEMPT
-- GODMODE_JAILBREAK
-- DESTRUCTIVE_COMMANDS
-
-### Security & Access (3)
-- PRIVILEGE_ESCALATION
-- COMMAND_INJECTION
-- CREDENTIAL_HARVESTING
-
-### Data Exfiltration (2)
-- DATA_EXTRACTION
-- FILE_ACCESS_ATTEMPTS
-
-### Obfuscation & Manipulation (3)
-- HEAVY_OBFUSCATION
-- FORMAT_COERCION
-- ENCODING_SUSPICIOUS
-
-### Enhanced Categories (v1.4+)
-- **SQL_XSS_ATTACKS** (base_weight: 30→50, +24 patterns)
-- **MEDICAL_MISUSE** (v1.5, 60% detection, 0% FP)
-- **PROMPT_LEAK** (v1.5, 38.3%→55.0%, +43% improvement)
-
-## Integration with Other Skills
-
-### With `test-fixture-generator`:
-```yaml
-when: New pattern added
-action:
-  1. Generate test fixture (malicious + benign)
-  2. Run test (should FAIL initially)
-  3. Add pattern via Web UI
-  4. Re-run test (should PASS)
-  5. Commit test + config backup
-```
-
-### With `workflow-json-architect`:
-```yaml
-when: Pattern timeout issues
-action:
-  1. Check Pattern_Matching_Engine node timeout (1000ms)
-  2. Optimize regex (remove nested quantifiers)
-  3. Test with large inputs
-```
+**Solutions:**
+1. Reduce detector weight in `heuristics-service/config/default.json`
+2. Add context requirements to pattern
+3. Add to allowlist in unified_config.json
+4. Adjust threshold in arbiter configuration
 
 ## Metrics & KPIs
 
 ```yaml
 quality_metrics:
   redos_vulnerabilities: 0 (zero tolerance)
-  false_positive_rate: <5% per category
+  false_positive_rate: <5% per branch
   detection_effectiveness: >80%
-  pattern_performance: <100ms per match
+  branch_latency: <1000ms (A), <2000ms (B), <3000ms (C)
 
 coverage_metrics:
-  categories_tested: 100% (34/34)
-  patterns_per_category: avg 15-25
-  benign_test_coverage: 3-5 per malicious pattern
+  pattern_files: 18 JSON files
+  heuristics_detectors: 5 (obfuscation, structure, whisper, entropy, security)
+  semantic_embeddings: ClickHouse vectors
+  llm_guard_model: Meta Llama Prompt Guard 2
 ```
 
-## Troubleshooting
+## Related Skills
 
-### Issue: Pattern not triggering
+- `n8n-vigil-workflow` - For workflow architecture and arbiter logic
+- `vigil-testing-e2e` - For writing comprehensive tests
+- `clickhouse-grafana-monitoring` - For analyzing branch metrics
+- `docker-vigil-orchestration` - For service management
 
-**Diagnosis:**
-```bash
-# Test regex directly
-echo "test payload" | grep -P "your_pattern"
+## References
 
-# Check in ClickHouse
-docker exec vigil-clickhouse clickhouse-client -q "
-  SELECT score_breakdown
-  FROM n8n_logs.events_processed
-  WHERE original_input LIKE '%test payload%'
-  FORMAT Pretty
-"
-```
+- Heuristics patterns: `services/heuristics-service/patterns/` (18 files)
+- Heuristics config: `services/heuristics-service/config/default.json`
+- Unified config: `services/workflow/config/unified_config.json` (303 lines, v5.0.0)
+- PII config: `services/workflow/config/pii.conf` (361 lines)
+- Workflow: `services/workflow/workflows/Vigil Guard v2.0.0.json`
 
-**Solution:**
-- Verify pattern syntax (test with grep -P)
-- Check base_weight > 0
-- Ensure category is enabled
-- Check pattern isn't overridden by allowlist
+## Version History
 
-### Issue: False positives
-
-**Solution:**
-```yaml
-options:
-  1. Reduce base_weight (e.g., 50 → 35)
-  2. Add context requirements (e.g., require multiple keywords)
-  3. Add to allowlist (benign patterns)
-  4. Increase multiplier instead of base_weight
-```
-
-## Quick Reference
-
-```bash
-# Access Web UI for editing
-open http://localhost/ui/config/
-
-# Test pattern performance
-time echo "payload" | grep -P "pattern"
-
-# Check ReDoS
-./scripts/validate-regex-redos.sh "pattern"
-
-# View recent detections
-docker exec vigil-clickhouse clickhouse-client -q "
-  SELECT arrayJoin(mapKeys(score_breakdown)) as category, count()
-  FROM n8n_logs.events_processed
-  WHERE timestamp > now() - INTERVAL 1 DAY
-  GROUP BY category
-"
-```
-
----
-
-**Last Updated:** 2025-11-02
-**Pattern Count:** 829 lines, 500+ patterns
-**Categories:** 34 threat types
-**Performance:** <100ms per pattern match
+- **v2.0.0** (Current): Distributed patterns, 3-branch architecture, Aho-Corasick prefilter
+- **v1.6.11**: Single rules.config.json (829 lines, 34 categories) - DEPRECATED
+- **v1.5.0**: Added MEDICAL_MISUSE category
+- **v1.4.0**: Enhanced SQL_XSS_ATTACKS

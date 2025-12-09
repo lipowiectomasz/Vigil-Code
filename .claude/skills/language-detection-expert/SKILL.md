@@ -1,30 +1,77 @@
 ---
 name: language-detection-expert
-description: Hybrid language detection algorithm for Vigil Guard. Use for language-detector Flask API, entity-based hints, Polish PESEL/NIP detection, accuracy troubleshooting, and langdetect integration.
-version: 1.6.11
+description: Hybrid language detection algorithm for Vigil Guard v2.0.0. Use for language-detector Flask API, entity-based hints, Polish PESEL/NIP detection, 3-branch pipeline integration, accuracy troubleshooting, and langdetect integration.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Language Detection Expert
+# Language Detection Expert (v2.0.0)
 
 ## Overview
-Hybrid language detection algorithm for Vigil Guard combining entity-based hints (Polish PESEL/NIP detection) with statistical analysis (langdetect library) for accurate dual-language PII processing.
+
+Hybrid language detection algorithm for Vigil Guard v2.0.0 combining entity-based hints (Polish PESEL/NIP detection) with statistical analysis (langdetect library) for accurate dual-language PII processing and 3-branch detection pipeline integration.
 
 ## When to Use This Skill
+
 - Managing language-detector Flask API (services/language-detector/)
 - Implementing hybrid detection logic
 - Troubleshooting detection accuracy (<10ms target)
 - Working with langdetect library
 - Polish entity recognition patterns
+- 3-branch pipeline integration (v2.0.0)
 
 ## Tech Stack
+
 - Python 3.11, Flask 3.0.0
 - langdetect 1.0.9 (statistical analysis)
 - Custom Polish entity patterns (PESEL, NIP, REGON)
 
-## Hybrid Detection Algorithm (v1.8.1)
+## v2.0.0 Architecture Integration
+
+### Position in 3-Branch Pipeline
+
+```yaml
+n8n Workflow (24 nodes):
+  1. Input Validation
+  2. Language Detection ← This Service
+  3. 3-Branch Executor (parallel):
+     - Branch A: Heuristics (uses language for keyword matching)
+     - Branch B: Semantic (uses language for embedding model)
+     - Branch C: LLM Guard (language-agnostic)
+  4. Arbiter v2 Decision
+  5. PII Redaction (uses language for Presidio model selection)
+```
+
+### Integration with Branches
+
+```javascript
+// From n8n 3-Branch Executor
+const languageResult = await fetch('http://vigil-language-detector:5002/detect', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ text: input, detailed: true })
+});
+
+const { language, detection_method } = await languageResult.json();
+
+// Branch A: Heuristics - uses language for keyword patterns
+const branchA = await fetch('http://vigil-heuristics:5005/analyze', {
+  body: JSON.stringify({ text: input, language, request_id })
+});
+
+// Branch B: Semantic - uses language for embedding selection
+const branchB = await fetch('http://vigil-semantic:5006/analyze', {
+  body: JSON.stringify({ text: input, language, request_id })
+});
+
+// PII Redaction - uses language for Presidio model
+const piiResult = await detectPII(text, language === 'pl' ? ['pl', 'en'] : ['en']);
+```
+
+## Hybrid Detection Algorithm (v2.0.0)
 
 ### Decision Flow
+
 ```yaml
 1. Check Polish Entity Hints:
    - PESEL pattern: \d{11} with checksum
@@ -186,7 +233,7 @@ from functools import lru_cache
 @lru_cache(maxsize=1000)
 def cached_detect(text_hash: str) -> tuple:
     """Cache detection results for performance"""
-    text = unhash(text_hash)  # Implement unhashing
+    text = unhash(text_hash)
     has_polish, entities = has_polish_entities(text)
     if has_polish:
         return ('pl', 1.0, 'hybrid_entity_hints', entities)
@@ -210,9 +257,56 @@ def detect_with_timeout(text: str, timeout_ms: int = 10):
         signal.alarm(0)  # Cancel alarm
 ```
 
-## Test Coverage (50 tests)
+## v2.0.0 Branch Integration Examples
+
+### Heuristics Service (Branch A) Integration
+
+```python
+# heuristics-service uses language for keyword patterns
+def analyze_with_language(text: str, language: str):
+    if language == 'pl':
+        keywords = POLISH_KEYWORDS + COMMON_KEYWORDS
+        patterns = POLISH_PATTERNS + COMMON_PATTERNS
+    else:
+        keywords = ENGLISH_KEYWORDS + COMMON_KEYWORDS
+        patterns = ENGLISH_PATTERNS + COMMON_PATTERNS
+
+    return match_patterns(text, patterns, keywords)
+```
+
+### Semantic Service (Branch B) Integration
+
+```python
+# semantic-service may use language for embedding model selection
+def get_embeddings(text: str, language: str):
+    # MiniLM-L6-v2 is multilingual, but language hint helps
+    model = load_model('all-MiniLM-L6-v2')
+
+    # Language-specific preprocessing
+    if language == 'pl':
+        text = polish_preprocessing(text)
+
+    return model.encode(text)
+```
+
+### PII Redaction Integration
+
+```python
+# PII redaction uses language for Presidio model selection
+async def detect_pii_with_language(text: str, detected_language: str):
+    if detected_language == 'pl':
+        # Polish first for PESEL detection accuracy
+        languages = ['pl', 'en']
+    else:
+        languages = ['en']
+
+    return await dual_language_pii(text, languages)
+```
+
+## Test Coverage
 
 ### Test Categories
+
 ```yaml
 Polish Text (15 tests):
   - With diacritics: "Cześć, jak się masz?"
@@ -241,6 +335,7 @@ Edge Cases (7 tests):
 ## Integration Points
 
 ### With presidio-pii-specialist:
+
 ```yaml
 when: Language detected
 action:
@@ -249,13 +344,27 @@ action:
   3. Dual mode → Call both, deduplicate
 ```
 
-### With workflow-json-architect:
+### With n8n-vigil-workflow (v2.0.0):
+
 ```yaml
-when: Update Language_Detector node
+when: 3-Branch Executor runs
 action:
-  1. Modify HTTP Request parameters
-  2. Handle response in PII_Redactor_v2
-  3. Log language_stats to ClickHouse
+  1. Language Detection node runs first
+  2. Result passed to all 3 branches
+  3. Branch A uses language for keyword selection
+  4. Branch B uses language for embedding preprocessing
+  5. PII_Redactor_v2 uses language for model selection
+```
+
+### With heuristics-service (Branch A):
+
+```yaml
+when: Heuristics analysis
+action:
+  1. Receive language from detection
+  2. Select language-specific patterns
+  3. Apply Polish or English keyword list
+  4. Return score with language context
 ```
 
 ## Troubleshooting
@@ -282,6 +391,17 @@ from langdetect import DetectorFactory
 DetectorFactory.seed = 0  # Deterministic results
 ```
 
+**Branch A not using language correctly:**
+```bash
+# Verify language is passed to heuristics
+curl -X POST http://localhost:5005/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text":"test PESEL 12345678901","language":"pl","request_id":"debug-1"}'
+
+# Check logs
+docker logs vigil-heuristics-service --tail 50 | grep language
+```
+
 ## Quick Reference
 
 ```bash
@@ -295,9 +415,37 @@ cd services/language-detector && python -m pytest tests/
 
 # Health check
 curl http://localhost:5002/health
+
+# Check service logs
+docker logs vigil-language-detector --tail 50
+```
+
+## ClickHouse Logging (v2.0.0)
+
+```sql
+-- Language detection results logged with events
+SELECT
+  original_input,
+  detected_language,
+  detection_method,
+  branch_a_score,
+  branch_b_score,
+  branch_c_score
+FROM n8n_logs.events_processed
+WHERE detected_language = 'pl'
+ORDER BY timestamp DESC
+LIMIT 10;
 ```
 
 ---
+
+**Last Updated:** 2025-12-09
 **Performance:** <10ms average detection time
-**Accuracy:** 100% (50/50 tests passing, v1.8.1)
+**Accuracy:** 100% (50/50 tests passing)
 **Languages Supported:** 55+ via langdetect, Polish priority
+**Integration:** 3-branch pipeline (v2.0.0)
+
+## Version History
+
+- **v2.0.0** (Current): 3-branch pipeline integration, branch language passing
+- **v1.6.11**: Hybrid detection algorithm, entity-based hints

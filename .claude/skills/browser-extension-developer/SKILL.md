@@ -1,24 +1,27 @@
 ---
 name: browser-extension-developer
-description: Chrome Manifest v3 extension development for Vigil Guard. Use for plugin development, content scripts, service workers, webhook integration, browser fingerprinting, and extension debugging.
-version: 1.4.0
+description: Chrome Manifest v3 extension development for Vigil Guard v2.0.0. Use for plugin development, content scripts, service workers, webhook integration with 3-branch detection, browser fingerprinting, and extension debugging.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Browser Extension Developer
+# Browser Extension Developer (v2.0.0)
 
 ## Overview
-Chrome Manifest v3 browser extension for Vigil Guard providing client-side prompt injection protection through webhook proxy integration and browser fingerprinting.
+
+Chrome Manifest v3 browser extension for Vigil Guard providing client-side prompt injection protection through webhook proxy integration with 3-branch parallel detection architecture and browser fingerprinting.
 
 ## When to Use This Skill
+
 - Developing Chrome extension (plugin/)
 - Implementing Manifest v3 features
 - Working with content scripts and background workers
-- Managing webhook integration
+- Managing webhook integration with 3-branch detection
 - Implementing browser fingerprinting
 - Debugging extension issues
 
 ## Tech Stack
+
 - Manifest v3 (Chrome Extensions API)
 - JavaScript ES6+ (no build step)
 - Service Worker (background.js)
@@ -42,23 +45,56 @@ plugin/
 └── README.md              # Installation guide
 ```
 
+## v2.0.0 Response Structure
+
+### Webhook Response Format (3-Branch Detection)
+
+```json
+{
+  "status": "BLOCKED",
+  "arbiter_decision": "BLOCK",
+  "threat_score": 85,
+  "branch_a_score": 72,
+  "branch_b_score": 88,
+  "branch_c_score": 91,
+  "branch_a_timing_ms": 45,
+  "branch_b_timing_ms": 120,
+  "branch_c_timing_ms": 250,
+  "detected_categories": ["PROMPT_INJECTION", "JAILBREAK"],
+  "sanitized_input": null,
+  "pii_detected": false,
+  "pipeline_version": "2.0.0"
+}
+```
+
+### Decision Mapping
+
+```javascript
+// v2.0.0 arbiter decisions
+const DECISION_MAP = {
+  'BLOCK': { allow: false, sanitize: false },
+  'SANITIZE': { allow: true, sanitize: true },
+  'ALLOW': { allow: true, sanitize: false }
+};
+```
+
 ## Manifest v3 Structure
 
 ```json
 {
   "manifest_version": 3,
   "name": "Vigil Guard Browser Extension",
-  "version": "0.5.0",
-  "description": "Client-side prompt injection protection for ChatGPT",
+  "version": "2.0.0",
+  "description": "Client-side prompt injection protection with 3-branch detection",
 
   "permissions": [
-    "storage",          // Save webhook URL
-    "activeTab"         // Access current tab
+    "storage",
+    "activeTab"
   ],
 
   "host_permissions": [
-    "https://chat.openai.com/*",      // ChatGPT
-    "http://localhost:5678/*"          // n8n webhook (dev)
+    "https://chat.openai.com/*",
+    "http://localhost:5678/*"
   ],
 
   "background": {
@@ -85,11 +121,10 @@ plugin/
 
 ## Common Tasks
 
-### Task 1: Content Script (ChatGPT Integration)
+### Task 1: Content Script (v2.0.0 Integration)
 
-**Intercept Chat Messages:**
 ```javascript
-// content.js
+// content.js - Updated for v2.0.0 response format
 (function() {
   'use strict';
 
@@ -132,15 +167,24 @@ plugin/
           browser_metadata: browserMetadata
         }
       }, response => {
-        if (response.status === 'ALLOWED' || response.status.startsWith('SANITIZE')) {
-          // Allow submission (possibly with sanitized input)
+        // v2.0.0: Check arbiter_decision instead of status
+        const decision = response.arbiter_decision || response.status;
+
+        if (decision === 'ALLOW') {
+          form.submit();
+        } else if (decision === 'SANITIZE') {
+          // Use sanitized input if available
           if (response.sanitized_input) {
             textarea.value = response.sanitized_input;
           }
           form.submit();
-        } else if (response.status === 'BLOCKED') {
-          // Show warning
-          alert(`⚠️ Vigil Guard: Potential prompt injection detected!\n\nThreat Score: ${response.totalScore}\nCategories: ${response.detectedCategories.join(', ')}`);
+        } else if (decision === 'BLOCK') {
+          // v2.0.0: Show detailed branch scores
+          const branchInfo = response.branch_a_score !== undefined
+            ? `\n\nBranch Scores:\n• Heuristics: ${response.branch_a_score}\n• Semantic: ${response.branch_b_score}\n• LLM Guard: ${response.branch_c_score}`
+            : '';
+
+          alert(`⚠️ Vigil Guard: Potential prompt injection detected!\n\nThreat Score: ${response.threat_score}\nCategories: ${(response.detected_categories || []).join(', ')}${branchInfo}`);
         }
       });
     }, true);
@@ -155,14 +199,12 @@ plugin/
 })();
 ```
 
-### Task 2: Background Service Worker (Webhook Proxy)
+### Task 2: Background Service Worker (v2.0.0)
 
-**Proxy Requests to n8n:**
 ```javascript
-// background.js
+// background.js - Updated for v2.0.0
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'ANALYZE_PROMPT') {
-    // Get webhook URL from storage
     chrome.storage.sync.get(['webhookUrl'], async (items) => {
       const webhookUrl = items.webhookUrl || 'http://localhost:5678/webhook/default';
 
@@ -179,62 +221,84 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
 
         const result = await response.json();
-        sendResponse(result);
+
+        // v2.0.0: Normalize response for backward compatibility
+        const normalizedResult = {
+          ...result,
+          // Map arbiter_decision to status if not present
+          status: result.status || result.arbiter_decision,
+          // Include branch scores if available
+          branch_a_score: result.branch_a_score,
+          branch_b_score: result.branch_b_score,
+          branch_c_score: result.branch_c_score,
+          // Map detected categories
+          detected_categories: result.detected_categories || result.detectedCategories || []
+        };
+
+        sendResponse(normalizedResult);
 
       } catch (error) {
         console.error('Vigil Guard error:', error);
         sendResponse({
-          status: 'ALLOWED',  // Fail-open (graceful degradation)
+          status: 'ALLOW',
+          arbiter_decision: 'ALLOW',  // v2.0.0 field
           error: error.message
         });
       }
     });
 
-    return true;  // Keep message channel open for async response
+    return true;
   }
 });
 ```
 
-### Task 3: Popup Configuration UI
+### Task 3: Popup Configuration UI (v2.0.0)
 
-**HTML:**
 ```html
-<!-- popup.html -->
+<!-- popup.html - Updated for v2.0.0 -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Vigil Guard Settings</title>
+  <title>Vigil Guard v2.0.0 Settings</title>
   <style>
-    body { width: 300px; padding: 10px; font-family: Arial, sans-serif; }
-    input { width: 100%; padding: 5px; margin: 5px 0; }
-    button { width: 100%; padding: 8px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-    .status { margin-top: 10px; padding: 5px; border-radius: 3px; }
+    body { width: 320px; padding: 12px; font-family: Arial, sans-serif; }
+    h3 { margin: 0 0 10px 0; }
+    input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; margin: 5px 0; cursor: pointer; }
+    .primary { background: #4CAF50; color: white; border: none; }
+    .secondary { background: #2196F3; color: white; border: none; }
+    .status { margin-top: 10px; padding: 8px; border-radius: 4px; font-size: 12px; }
     .success { background: #d4edda; color: #155724; }
     .error { background: #f8d7da; color: #721c24; }
+    .info { background: #cce5ff; color: #004085; }
+    .branch-status { font-size: 11px; margin-top: 8px; }
+    .branch-status div { margin: 2px 0; }
+    .healthy { color: #155724; }
+    .unhealthy { color: #721c24; }
   </style>
 </head>
 <body>
-  <h3>Vigil Guard Configuration</h3>
+  <h3>Vigil Guard v2.0.0</h3>
 
   <label>Webhook URL:</label>
   <input type="text" id="webhookUrl" placeholder="http://localhost:5678/webhook/xxx">
 
-  <button id="save">Save Configuration</button>
-  <button id="test">Test Connection</button>
+  <button id="save" class="primary">Save Configuration</button>
+  <button id="test" class="secondary">Test Connection</button>
+  <button id="healthCheck" class="secondary">Check Branch Health</button>
 
   <div id="status"></div>
+  <div id="branchStatus" class="branch-status"></div>
 
   <script src="popup.js"></script>
 </body>
 </html>
 ```
 
-**JavaScript:**
 ```javascript
-// popup.js
+// popup.js - Updated for v2.0.0
 document.getElementById('save').addEventListener('click', () => {
   const webhookUrl = document.getElementById('webhookUrl').value;
-
   chrome.storage.sync.set({ webhookUrl }, () => {
     showStatus('Configuration saved!', 'success');
   });
@@ -248,13 +312,19 @@ document.getElementById('test').addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chatInput: 'test',
+        chatInput: 'test connection',
         sessionId: 'extension_test'
       })
     });
 
     if (response.ok) {
-      showStatus('✅ Connection successful!', 'success');
+      const result = await response.json();
+      // v2.0.0: Check for arbiter_decision
+      if (result.arbiter_decision) {
+        showStatus(`✅ Connected (v2.0.0) - Arbiter: ${result.arbiter_decision}`, 'success');
+      } else {
+        showStatus('✅ Connected (legacy mode)', 'success');
+      }
     } else {
       showStatus(`❌ Error: ${response.status}`, 'error');
     }
@@ -263,10 +333,46 @@ document.getElementById('test').addEventListener('click', async () => {
   }
 });
 
+// v2.0.0: Branch health check
+document.getElementById('healthCheck').addEventListener('click', async () => {
+  const webhookUrl = document.getElementById('webhookUrl').value;
+  const baseUrl = new URL(webhookUrl).origin;
+
+  try {
+    // Note: This requires backend proxy endpoint
+    const response = await fetch(`${baseUrl}/api/health/branches`);
+
+    if (response.ok) {
+      const branches = await response.json();
+      showBranchStatus(branches);
+    } else {
+      showStatus('❌ Health check unavailable', 'error');
+    }
+  } catch (error) {
+    showStatus('❌ Cannot reach health endpoint', 'error');
+  }
+});
+
 function showStatus(message, type) {
   const status = document.getElementById('status');
   status.textContent = message;
   status.className = `status ${type}`;
+}
+
+function showBranchStatus(branches) {
+  const container = document.getElementById('branchStatus');
+  container.innerHTML = `
+    <div class="${branches.branch_a?.healthy ? 'healthy' : 'unhealthy'}">
+      Branch A (Heuristics): ${branches.branch_a?.healthy ? '✅' : '❌'}
+    </div>
+    <div class="${branches.branch_b?.healthy ? 'healthy' : 'unhealthy'}">
+      Branch B (Semantic): ${branches.branch_b?.healthy ? '✅' : '❌'}
+    </div>
+    <div class="${branches.branch_c?.healthy ? 'healthy' : 'unhealthy'}">
+      Branch C (LLM Guard): ${branches.branch_c?.healthy ? '✅' : '❌'}
+    </div>
+  `;
+  showStatus('Branch status updated', 'info');
 }
 
 // Load saved configuration
@@ -279,7 +385,6 @@ chrome.storage.sync.get(['webhookUrl'], (items) => {
 
 ### Task 4: Browser Fingerprinting
 
-**Collect Metadata:**
 ```javascript
 // config.js
 function getBrowserFingerprint() {
@@ -319,8 +424,37 @@ function getCanvasFingerprint() {
   ctx.textBaseline = 'top';
   ctx.font = '14px Arial';
   ctx.fillText('Vigil Guard Fingerprint', 2, 2);
-  return canvas.toDataURL().substring(0, 50);  // Hash first 50 chars
+  return canvas.toDataURL().substring(0, 50);
 }
+```
+
+## Integration Points
+
+### With n8n-vigil-workflow (v2.0.0):
+```yaml
+when: Extension sends request
+action:
+  1. Workflow receives browser_metadata + clientId
+  2. 3-branch parallel detection executes
+  3. Arbiter v2 makes decision
+  4. Response includes branch scores
+  5. Log to ClickHouse with branch columns
+```
+
+### With clickhouse-grafana-monitoring (v2.0.0):
+```sql
+-- Query extension usage with branch data
+SELECT
+  client_id,
+  count() as requests,
+  avg(branch_a_score) as avg_heuristics,
+  avg(branch_b_score) as avg_semantic,
+  avg(branch_c_score) as avg_llm_guard,
+  countIf(arbiter_decision = 'BLOCK') as blocked
+FROM n8n_logs.events_processed
+WHERE client_id LIKE 'client_%'
+GROUP BY client_id
+ORDER BY requests DESC
 ```
 
 ## Testing & Development
@@ -333,82 +467,47 @@ chrome://extensions/ → Enable Developer Mode → Load unpacked → Select plug
 # 2. Test on ChatGPT
 open https://chat.openai.com/
 
-# 3. Check console
-F12 → Console → Look for "Vigil Guard" messages
+# 3. Check console for v2.0.0 response
+F12 → Console → Look for "Vigil Guard" messages with branch scores
 
-# 4. Verify webhook
-docker logs vigil-n8n | grep "ext_"
+# 4. Verify webhook (check for arbiter_decision)
+docker logs vigil-n8n | grep "arbiter_decision"
 ```
 
 ### Debugging
 ```javascript
-// background.js - Add logging
-console.log('[Vigil Guard] Analyzing prompt:', request.data);
-
-// content.js - Verify injection
-console.log('[Vigil Guard] Content script loaded on:', window.location.href);
-```
-
-## Integration Points
-
-### With workflow-json-architect:
-```yaml
-when: Extension sends request
-action:
-  1. Workflow receives browser_metadata + clientId
-  2. Log to ClickHouse (client_id column)
-  3. Track sessions by client fingerprint
-```
-
-### With clickhouse-grafana-monitoring:
-```sql
--- Query extension usage
-SELECT
-  client_id,
-  count() as requests,
-  browser_metadata.userAgent
-FROM n8n_logs.events_processed
-WHERE client_id LIKE 'client_%'
-GROUP BY client_id, browser_metadata.userAgent
-ORDER BY requests DESC
+// background.js - Add v2.0.0 logging
+console.log('[Vigil Guard v2.0.0] Analyzing prompt:', request.data);
+console.log('[Vigil Guard v2.0.0] Response:', {
+  arbiter_decision: response.arbiter_decision,
+  branch_a: response.branch_a_score,
+  branch_b: response.branch_b_score,
+  branch_c: response.branch_c_score
+});
 ```
 
 ## Troubleshooting
 
-**Extension not loading:**
-```bash
-# Check manifest.json syntax
-cat plugin/manifest.json | jq .
-
-# Verify permissions
-# Chrome → Extensions → Vigil Guard → Details → Permissions
+**v2.0.0 response not recognized:**
+```javascript
+// Check for both old and new response formats
+const decision = response.arbiter_decision || response.status;
+const categories = response.detected_categories || response.detectedCategories || [];
 ```
 
-**Content script not injecting:**
+**Branch scores undefined:**
 ```javascript
-// Add to manifest.json
-"content_scripts": [{
-  "matches": ["https://chat.openai.com/*"],
-  "js": ["content.js"],
-  "run_at": "document_end",  // Try "document_end" instead of "document_idle"
-  "all_frames": false
-}]
-```
-
-**CORS errors:**
-```javascript
-// Ensure host_permissions includes webhook domain
-"host_permissions": [
-  "http://localhost:5678/*",
-  "https://yourdomain.com/*"  // Add production domain
-]
+// Branch C may timeout - handle gracefully
+const branchInfo = response.branch_a_score !== undefined
+  ? `Scores: A=${response.branch_a_score}, B=${response.branch_b_score}, C=${response.branch_c_score || 'N/A'}`
+  : 'Branch scores unavailable';
 ```
 
 ## Quick Reference
 
 ```bash
 # Package extension
-cd plugin && zip -r vigil-guard-extension.zip *
+cd plugin && zip -r vigil-guard-extension-v2.0.0.zip *
 
 # Install in Chrome
 chrome://extensions/ → Load unpacked → Select plugin/
@@ -416,12 +515,16 @@ chrome://extensions/ → Load unpacked → Select plugin/
 # View console
 F12 → Console
 
-# Check storage
-chrome://extensions/ → Vigil Guard → Inspect views: service worker → Application → Storage
+# Check v2.0.0 backend
+curl http://localhost:5678/webhook/default \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput":"test","sessionId":"ext_test"}' | jq '.arbiter_decision'
 ```
 
 ---
-**Current Version:** v0.5.0
+
+**Current Version:** v2.0.0
 **Manifest:** v3
 **Supported Sites:** ChatGPT (chat.openai.com)
-**Status:** Active development
+**Backend:** 3-Branch Parallel Detection (24 nodes)
+**Response Format:** arbiter_decision + branch scores

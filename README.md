@@ -1,11 +1,12 @@
-# Vigil-Code: Technology Expert Agent System v3.1
+# Vigil-Code: Technology Expert Agent System v3.2
 
 **A practical technology expert agent framework for Claude Code. Build specialized AI assistants with domain knowledge, documentation access, and state recovery protocols.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blue.svg)](https://claude.ai/code)
 [![Experts: 17](https://img.shields.io/badge/Experts-17-green.svg)](#technology-experts-17)
-[![Version: 3.1](https://img.shields.io/badge/Version-3.1-brightgreen.svg)]()
+[![Skills: 22](https://img.shields.io/badge/Skills-22-orange.svg)](#skills-domain-context)
+[![Version: 3.2](https://img.shields.io/badge/Version-3.2-brightgreen.svg)]()
 
 > **Documentation available in:** [Polski (Polish)](docs/README.pl.md)
 
@@ -87,9 +88,9 @@ cp CLAUDE.md /path/to/your/project/
 ```
 your-project/
 ├── .claude/
-│   ├── agents/           # 16 technology experts
+│   ├── agents/           # 17 technology experts
 │   ├── commands/         # 23 slash commands
-│   ├── skills/           # 18 domain contexts
+│   ├── skills/           # 22 domain contexts
 │   ├── core/             # Protocols and schemas
 │   │   ├── protocols.md  # OODA, checkpoints, errors
 │   │   └── tool-schema.md # Tool categories
@@ -1008,5 +1009,5 @@ Copyright (c) 2025 Tomasz Bartel
 ---
 
 **Status:** Production Ready
-**Version:** 3.1.0
-**Last Updated:** 2025-12-02
+**Version:** 3.2.0
+**Last Updated:** 2025-12-09

@@ -1,124 +1,250 @@
 ---
 name: n8n-vigil-workflow
-description: Expert guidance for n8n workflow development in Vigil Guard. Use when working with detection patterns, threat categories, sanitization engine, 40-node processing pipeline, workflow configuration, dual-language PII detection, language detection, or managing rules.config.json and unified_config.json files.
-version: 1.6.11
+description: Expert guidance for n8n workflow development in Vigil Guard v2.0.0. Use when working with the 24-node 3-branch parallel detection pipeline, arbiter decision logic, unified_config.json management, dual-language PII detection, or workflow troubleshooting.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# n8n Vigil Guard Workflow Development
+# n8n Vigil Guard Workflow Development (v2.0.0)
 
 ## Overview
-Comprehensive guidance for developing and maintaining the Vigil Guard n8n workflow engine - a 40-node sequential pipeline with dual-language PII detection (Polish + English), hybrid language detection, 34 threat categories, and ClickHouse logging.
+
+Comprehensive guidance for developing and maintaining the Vigil Guard n8n workflow engine - a **24-node 3-branch parallel detection pipeline** with weighted arbiter fusion, dual-language PII detection (Polish + English), and ClickHouse logging.
+
+## v2.0.0 Architecture Overview
+
+### 3-Branch Parallel Detection System
+
+```
+Input → Extract → Validate → Config Load
+         ↓
+    3-Branch Executor (PARALLEL):
+    ├─ Branch A: Heuristics (:5005) - 30% weight
+    │            - Aho-Corasick prefilter (993 keywords)
+    │            - Obfuscation detector
+    │            - Structure analyzer
+    │            - Whisper detector
+    │            - Entropy analyzer
+    │
+    ├─ Branch B: Semantic (:5006) - 35% weight
+    │            - MiniLM-L6-v2 embeddings (384-dim)
+    │            - ClickHouse vector search
+    │            - Cosine similarity scoring
+    │
+    └─ Branch C: LLM Guard (:8000) - 35% weight
+                 - Meta Llama Prompt Guard 2
+                 - ML-based attack detection
+         ↓
+    Arbiter v2 (weighted fusion)
+         ↓
+    Decision → PII Redaction → ClickHouse Log → Output
+```
+
+### 24 Workflow Nodes (v2.0.0)
+
+```
+1. When chat message received    # Chat trigger
+2. Webhook v2                    # HTTP webhook trigger
+3. Extract Input                 # Normalize input format
+4. Load allowlist.schema.json    # Load allowlist config
+5. Load pii.conf                 # Load PII patterns (361 lines)
+6. Load unified_config.json      # Load main config (303 lines, v5.0.0)
+7. Extract allowlist             # Parse allowlist
+8. Extract pii.conf              # Parse PII config
+9. Extract unified_config        # Parse main config
+10. Merge Config                 # Combine all configs
+11. Config Loader v2             # Final config object
+12. Input Validator v2           # Validate input (length, format)
+13. Validation Check             # Route based on validation
+14. 3-Branch Executor            # PARALLEL branch execution
+15. Arbiter v2                   # Weighted score fusion
+16. Arbiter Decision             # Route based on score
+17. PII_Redactor_v2              # Dual-language PII detection
+18. Block Response v2            # Generate block response
+19. Merge Final                  # Merge all paths
+20. Build NDJSON v2              # Format for logging
+21. Log to ClickHouse v2         # Send to analytics DB
+22. Clean Output v2              # User-facing result
+23. Early Block v2               # Fast-path for validation failures
+24. output to plugin             # Browser extension response
+```
 
 ## When to Use This Skill
-- Adding new detection patterns to rules.config.json (829 lines)
-- Modifying threat categories or base weights (34 categories)
-- Configuring decision thresholds (ALLOW/SANITIZE/BLOCK)
-- Configuring PII detection (Presidio dual-language mode)
-- Configuring language detection (hybrid entity-based + statistical)
-- Troubleshooting workflow nodes
-- Understanding detection scoring algorithms
-- Working with configuration files (NEVER modify directly!)
-- Testing patterns via n8n chat interface
 
-## ⚠️ Critical Constraints
+- Understanding 3-branch parallel detection architecture
+- Configuring arbiter weights (A: 30%, B: 35%, C: 35%)
+- Modifying decision thresholds (ALLOW/SANITIZE/BLOCK)
+- Configuring PII detection (Presidio dual-language mode)
+- Troubleshooting workflow nodes or branch failures
+- Understanding scoring algorithms and fusion logic
+- Working with unified_config.json (NEVER modify directly!)
+- Testing detection via n8n chat interface
+
+## Critical Constraints
 
 ### Configuration Files
+
 **NEVER modify files in `services/workflow/config/` directly**
-✅ **ALWAYS use the Web GUI** at http://localhost/ui/config/
+
+| File | Lines | Version | Purpose |
+|------|-------|---------|---------|
+| unified_config.json | 303 | v5.0.0 | Main configuration |
+| pii.conf | 361 | - | PII detection patterns |
+| allowlist.schema.json | - | - | Allowlist structure |
+
+**REMOVED:** `rules.config.json` (829 lines) - merged into unified_config.json
+
+**ALWAYS use the Web GUI** at http://localhost/ui/config/
 - Configuration changes tracked with audit logs
 - ETag concurrency control prevents conflicts
-- Backup rotation maintains version history (max 2 backups per file)
-- Variable mapping managed via `frontend/src/spec/variables.json`
+- Backup rotation maintains version history
 
-### n8n Workflow Import Behavior - CRITICAL KNOWLEDGE
-**❌ NEVER ASSUME import issues when workflow doesn't work as expected**
+### n8n Workflow Import - CRITICAL KNOWLEDGE
 
-**THE TRUTH:**
-- n8n import from JSON **DOES** update ALL node code including jsCode parameters
-- When user says "I imported the workflow", **BELIEVE THEM** - it IS imported correctly
-- If workflow behavior doesn't match expectations, the problem is NOT the import
+**When user says "I imported the workflow", BELIEVE THEM:**
+- n8n import from JSON **DOES** update ALL node code
+- If behavior doesn't match expectations, problem is NOT the import
+- Look for bugs in CODE LOGIC, not import process
 
-**COMMON MISTAKE (FORBIDDEN):**
+**FORBIDDEN:**
 ```
-❌ "The workflow might not be imported correctly"
-❌ "Try deleting and re-importing the workflow"
-❌ "n8n doesn't update node code on import"
-❌ "Let me check if the workflow is using the old version"
+"The workflow might not be imported correctly"
+"Try deleting and re-importing the workflow"
+"n8n doesn't update node code on import"
 ```
 
 **CORRECT APPROACH:**
 ```
-✅ User imported → workflow code IS updated
-✅ Look for bugs in the CODE LOGIC, not import process
-✅ Debug the actual execution flow
-✅ Check if console.log statements are missing (they don't always work)
-✅ Test components in isolation (Presidio API directly, etc.)
+User imported → workflow code IS updated
+Debug actual execution flow
+Test components in isolation (services directly)
+Check branch timing and degraded states
 ```
-
-**WHY THIS MATTERS:**
-- Wasting time on "import troubleshooting" is a BLIND ALLEY
-- User has repeatedly confirmed imports are correct
-- Real issues are: logic bugs, API communication, pattern matching, etc.
-
-**EXAMPLE FROM HISTORY:**
-- Problem: Invalid PESEL "12345678901" detected as [phone]
-- Wrong diagnosis: "Workflow not imported correctly"
-- Real cause: Presidio pattern score too low (0.60 < 0.7 threshold)
-- Solution: Change recognizers.yaml score from 0.60 → 0.75
 
 ## Detection Architecture
 
-### 40-Node Processing Pipeline (v1.8.1)
-```
-1. Chat Input (webhook trigger)
-2. Input_Validator (length, format, sanitization)
-3. Language_Detector (hybrid: entity hints + statistical) [NEW v1.8.1]
-4. PII_Redactor_v2 (dual Presidio calls: Polish + English) [NEW v1.8.1]
-5. Normalize_Node (Unicode NFKC, max 3 iterations)
-6. Bloom_Prefilter (1000-element filter, early rejection)
-7. Allowlist_Validator (bypass detection for known-good)
-8. Pattern_Matching_Engine (829-line rules.config.json, 34 categories)
-9. Unified Decision Engine (score-based thresholds)
-10. Correlation_Engine (pattern combination analysis)
-11. Sanitization_Enforcement (Light: 10 categories, Heavy: all 34)
-12. [Optional] Prompt_Guard_API (LLM validation)
-13. Final_Decision (ALLOW/SANITIZE_LIGHT/SANITIZE_HEAVY/BLOCK)
-14. Build+Sanitize NDJSON (logging structure)
-15. Logging to ClickHouse (events_raw + events_processed)
-16. Clean_Output (user-facing result)
+### Branch Weight Configuration
+
+| Branch | Service | Port | Weight | Timeout |
+|--------|---------|------|--------|---------|
+| A | Heuristics | 5005 | 30% | 1000ms |
+| B | Semantic | 5006 | 35% | 2000ms |
+| C | LLM Guard | 8000 | 35% | 3000ms |
+
+### Arbiter v2 Decision Logic
+
+```javascript
+// Weighted score calculation
+const weights = { A: 0.30, B: 0.35, C: 0.35 };
+const finalScore =
+  (branchA.score * weights.A) +
+  (branchB.score * weights.B) +
+  (branchC.score * weights.C);
+
+// Critical signal escalation
+if (branchA.critical_signals?.obfuscation_heavy ||
+    branchC.critical_signals?.llm_attack) {
+  // Force BLOCK regardless of score
+}
 ```
 
 ### Decision Matrix
-| Score Range | Action | Severity | Sanitization |
-|------------|--------|----------|-------------|
-| 0-29 | ALLOW | Clean | None |
-| 30-64 | SANITIZE_LIGHT | Low | 10 categories |
-| 65-84 | SANITIZE_HEAVY | Medium | All 34 categories |
-| 85-100 | BLOCK | Critical | N/A (rejected) |
 
-### 34 Detection Categories (v1.8.1)
-**Critical Threats (6)**: CRITICAL_INJECTION, JAILBREAK_ATTEMPT, CONTROL_OVERRIDE, PROMPT_LEAK_ATTEMPT, GODMODE_JAILBREAK, DESTRUCTIVE_COMMANDS
+| Score Range | Action | Severity |
+|------------|--------|----------|
+| 0-29 | ALLOW | Clean |
+| 30-64 | SANITIZE_LIGHT | Low |
+| 65-84 | SANITIZE_HEAVY | Medium |
+| 85-100 | BLOCK | Critical |
 
-**Security & Access (3)**: PRIVILEGE_ESCALATION, COMMAND_INJECTION, CREDENTIAL_HARVESTING
+### Unified Contract v2.1 (Branch Response)
 
-**Obfuscation & Manipulation (3)**: HEAVY_OBFUSCATION, FORMAT_COERCION, ENCODING_SUSPICIOUS
+Each branch returns:
+```json
+{
+  "branch_id": "A",
+  "name": "heuristics",
+  "score": 45,
+  "threat_level": "MEDIUM",
+  "confidence": 0.85,
+  "critical_signals": {
+    "obfuscation_heavy": false,
+    "structure_anomaly": true
+  },
+  "features": { ... },
+  "explanations": ["Pattern detected: ..."],
+  "timing_ms": 45,
+  "degraded": false
+}
+```
 
-**Enhanced Categories**:
-- **SQL_XSS_ATTACKS** (v1.4: base weight 30→50, +24 patterns)
-- **MEDICAL_MISUSE** (v1.5: 60% detection, 0% FP)
-- **PROMPT_LEAK** (v1.5: 38.3%→55.0%, +43% improvement)
+## Service Endpoints
 
-See: `docs/DETECTION_CATEGORIES.md` for complete list
+### Heuristics Service (Branch A)
+
+```bash
+# Health check
+curl http://localhost:5005/health
+
+# Analyze text
+curl -X POST http://localhost:5005/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "test input", "request_id": "123"}'
+```
+
+**Features:**
+- Aho-Corasick prefilter (993 keywords, 77% single-category hits)
+- 4 specialized detectors: obfuscation, structure, whisper, entropy
+- Internal normalization (leet speak, unicode, encoding)
+
+### Semantic Service (Branch B)
+
+```bash
+# Health check
+curl http://localhost:5006/health
+
+# Analyze text
+curl -X POST http://localhost:5006/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "test input", "request_id": "123"}'
+```
+
+**Features:**
+- MiniLM-L6-v2 model (384-dimensional embeddings)
+- ClickHouse vector storage and similarity search
+- Cosine similarity scoring against known attack patterns
+
+### LLM Guard (Branch C)
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Detect attack
+curl -X POST http://localhost:8000/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text": "test input"}'
+```
+
+**Features:**
+- Meta Llama Prompt Guard 2 model
+- ML-based attack classification
+- Binary is_attack decision with confidence
 
 ## Common Tasks
 
 ### Add Detection Pattern
-**TDD Approach** (Recommended):
+
+**With v2.0.0, patterns are managed in:**
+1. **Heuristics Service** - `services/heuristics-service/patterns/`
+2. **Semantic Service** - Vector embeddings in ClickHouse
+3. **unified_config.json** - Category configurations
+
+**TDD Approach:**
 ```bash
 cd services/workflow
 
-# 1. Create test first
+# 1. Create test fixture
 cat > tests/fixtures/my-attack.json << 'EOF'
 {
   "prompt": "malicious payload here",
@@ -126,357 +252,233 @@ cat > tests/fixtures/my-attack.json << 'EOF'
 }
 EOF
 
-# 2. Add to test suite (tests/e2e/bypass-scenarios.test.js)
-# 3. Run test (should FAIL)
-npm test -- bypass-scenarios.test.js
+# 2. Run test (should FAIL)
+npm test -- vigil-detection.test.js
 
-# 4. Add pattern via GUI at http://localhost/ui/config/
-#    Navigate to: Detection Tuning → rules.config.json
-#    Add pattern to appropriate category
+# 3. Add pattern to heuristics service or config
 
-# 5. Re-run test (should PASS)
+# 4. Re-run test (should PASS)
 npm test
 ```
 
-### Modify Threshold Ranges
-Access via GUI: http://localhost/ui/config/ → Quick Settings
-- ALLOW_MAX: 0-29 (default)
-- SANITIZE_LIGHT_MAX: 30-64
-- SANITIZE_HEAVY_MAX: 65-84
-- BLOCK_MIN: 85+
+### Test Detection Flow
 
-### Test Pattern Effectiveness
 ```bash
 # Option 1: n8n Chat Interface
 # 1. Open http://localhost:5678
-# 2. Open Vigil-Guard-v1.4.json workflow
+# 2. Open "Vigil Guard v2.0.0" workflow
 # 3. Click "Test workflow" → "Chat" tab
 # 4. Send test prompts
-# 5. Review detection scores
+# 5. Review branch scores in response
 
-# Option 2: Automated Test Suite
-cd services/workflow
-npm test -- --grep "SQL injection"
+# Option 2: Direct Webhook
+curl -X POST http://localhost:5678/webhook/vigil-guard \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput": "test payload"}'
 ```
 
-## Configuration Files Reference
+### Debug Branch Failures
 
-### unified_config.json
-```json
-{
-  "normalization": { "unicode_form": "NFKC", "max_iterations": 3 },
-  "sanitization": { "light": {}, "heavy": {} },
-  "bloom_filter": { "enabled": true, "size": 1000 },
-  "thresholds": { "allow_max": 29, "sanitize_light_max": 64 }
-}
+```bash
+# Check branch health
+curl http://localhost:5005/health  # Heuristics
+curl http://localhost:5006/health  # Semantic
+curl http://localhost:8000/health  # LLM Guard
+
+# Check n8n logs for branch timing
+docker logs vigil-n8n 2>&1 | grep "3-Branch"
+
+# Query ClickHouse for branch results
+docker exec vigil-clickhouse clickhouse-client -q "
+  SELECT
+    branch_a_score,
+    branch_b_score,
+    branch_c_score,
+    final_status
+  FROM n8n_logs.events_processed
+  ORDER BY timestamp DESC
+  LIMIT 10
+"
 ```
 
-### rules.config.json
-```json
-{
-  "categories": {
-    "SQL_XSS_ATTACKS": {
-      "base_weight": 50,
-      "multiplier": 1.3,
-      "patterns": ["SELECT.*FROM", "DROP TABLE", "<script>"]
-    }
-  }
-}
+## Dual-Language PII Detection
+
+### Architecture (v2.0.0)
+
 ```
-
-**Edit directly with TDD workflow** - patterns arrays NOT available in Web UI!
-
-## Dual-Language PII Detection (v1.8.1+)
-
-### Architecture Overview
-
-**Language Detection Flow (v1.8.1):**
-```
-1. Normalize_Node → Normalized text
-2. Language_Detector → Hybrid detection (entity hints + statistical)
-   - Polish entities (PESEL, NIP, Polish keywords) → force Polish
-   - Otherwise → langdetect statistical analysis
-3. PII_Redactor_v2 → Dual Presidio calls (parallel)
-4. Entity Deduplication → Merge overlapping entities
-5. Masking/Anonymization → Final sanitized output
+1. Language_Detector → Hybrid detection (entity hints + statistical)
+2. PII_Redactor_v2 → Dual Presidio calls (parallel)
+   - Polish model: PERSON, PL_PESEL, PL_NIP, PL_REGON, EMAIL
+   - English model: EMAIL, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS, etc.
+3. Entity Deduplication → Merge overlapping entities
+4. Masking/Anonymization → Final sanitized output
 ```
 
 ### Configuration (unified_config.json)
 
-**PII Detection Section:**
 ```json
 {
   "pii_detection": {
     "presidio_enabled": true,
-    "language": "auto",                    // Hybrid detection
-    "fallback_to_regex": true,             // If Presidio fails
-    "score_threshold": 0.7,                // Entity confidence
-    "dual_language_mode": true,            // NEW v1.8.1
-    "entities_polish": [
-      "PERSON",        // Only if text is Polish
-      "PL_PESEL",      // Polish national ID
-      "PL_NIP",        // Polish tax ID
-      "PL_REGON",      // Polish business ID
-      "EMAIL"
-    ],
-    "entities_international": [
-      "EMAIL",
-      "PHONE_NUMBER",
-      "CREDIT_CARD",
-      "IP_ADDRESS",
-      "IBAN_CODE",
-      "US_SSN",
-      "UK_NHS"
-    ]
+    "language": "auto",
+    "dual_language_mode": true,
+    "score_threshold": 0.7,
+    "entities_polish": ["PERSON", "PL_PESEL", "PL_NIP", "PL_REGON", "EMAIL"],
+    "entities_international": ["EMAIL", "PHONE_NUMBER", "CREDIT_CARD", "IP_ADDRESS"]
   }
 }
 ```
 
-**Access via GUI:** Configuration → PII Detection
+### Test PII Detection
 
-### Parallel Presidio Calls
-
-**PII_Redactor_v2 Node Logic:**
-```javascript
-// 1. Language detection
-const langResponse = await axios.post('http://vigil-language-detector:5002/detect', {
-  text: normalizedText,
-  detailed: false
-}, { timeout: 1000 });
-
-const detectedLang = langResponse.data.language; // 'pl' or 'en'
-
-// 2. Hybrid logic: Entity-based hints override low-confidence detection
-const isProbablyPolish = (detectedLang === 'pl') || hasPolishEntities(normalizedText);
-
-// 3. Parallel Presidio API calls
-const [plResults, enResults] = await Promise.all([
-  // Polish model (PERSON + Polish IDs)
-  axios.post('http://vigil-presidio-pii:5001/analyze', {
-    text: normalizedText,
-    language: 'pl',
-    entities: isProbablyPolish ?
-      ['PERSON', 'PL_PESEL', 'PL_NIP', 'PL_REGON', 'EMAIL'] :
-      ['PL_PESEL', 'PL_NIP', 'PL_REGON'] // No PERSON for English text
-  }),
-
-  // English model (international PII)
-  axios.post('http://vigil-presidio-pii:5001/analyze', {
-    text: normalizedText,
-    language: 'en',
-    entities: ['EMAIL', 'PHONE_NUMBER', 'CREDIT_CARD', 'IP_ADDRESS', ...]
-  })
-]);
-
-// 4. Deduplication: Merge results, remove overlaps
-const allEntities = deduplicateEntities([
-  ...plResults.data.entities,
-  ...enResults.data.entities
-]);
-```
-
-### Entity Deduplication Logic
-
-**Why Needed:**
-- Both models may detect same EMAIL or phone number
-- Overlapping PERSON entities (Polish vs English NER)
-- Credit card detected by both recognizers
-
-**Algorithm:**
-```javascript
-function deduplicateEntities(entities) {
-  // Sort by start position, then score (descending)
-  entities.sort((a, b) => a.start !== b.start ? a.start - b.start : b.score - a.score);
-
-  const deduplicated = [];
-  for (const entity of entities) {
-    // Check if overlaps with any existing entity
-    const overlaps = deduplicated.some(existing =>
-      (entity.start >= existing.start && entity.start < existing.end) ||
-      (entity.end > existing.start && entity.end <= existing.end)
-    );
-
-    if (!overlaps) {
-      deduplicated.push(entity);
-    }
-  }
-
-  return deduplicated;
-}
-```
-
-### Performance Metrics
-
-**From Load Testing (v1.8.1):**
-- **Avg latency:** 310ms (vs 150ms single-language, +107%)
-- **Detection rate:** 96% (48/50 requests with PII detected)
-- **Memory:** ~616MB (unchanged from single-language)
-- **Timeout behavior:** Graceful (3000ms limit, fallback to regex)
-
-### Language Statistics (ClickHouse Logging)
-
-**Logged Fields:**
-```json
-{
-  "pii": {
-    "has": true,
-    "entities_detected": 3,
-    "detection_method": "presidio_dual_language",
-    "processing_time_ms": 310,
-    "language_stats": {
-      "detected_language": "pl",
-      "detection_method": "hybrid_entity_hints",
-      "polish_entities": 2,
-      "international_entities": 1,
-      "total_after_dedup": 3
-    },
-    "entities": [
-      { "type": "PL_PESEL", "start": 10, "end": 21, "score": 1.0 },
-      { "type": "EMAIL", "start": 30, "end": 45, "score": 0.95 },
-      { "type": "PHONE_NUMBER", "start": 50, "end": 62, "score": 0.85 }
-    ]
-  }
-}
-```
-
-### Fallback Behavior
-
-**Automatic Fallback Chain:**
-```
-1. Presidio dual-language (preferred)
-   ↓ (if Presidio service unavailable)
-2. Regex patterns from pii.conf (13 basic patterns)
-   ↓ (if both fail)
-3. Continue without PII redaction (log warning)
-```
-
-**Monitoring Fallback Rate:**
-```sql
--- ClickHouse query
-SELECT
-  JSON_VALUE(sanitizer_json, '$.pii.detection_method') AS method,
-  count() AS occurrences
-FROM n8n_logs.events_processed
-WHERE timestamp > now() - INTERVAL 1 DAY
-GROUP BY method;
-
--- Expected:
--- presidio_dual_language: 95%+
--- regex_fallback: <5%
-```
-
-### Troubleshooting PII Detection
-
-**Issue: PII not detected**
 ```bash
-# 1. Check Presidio service health
-curl http://localhost:5001/health
-
-# 2. Check language detector health
-curl http://localhost:5002/health
-
-# 3. Test Presidio directly
+# Test Presidio directly
 curl -X POST http://localhost:5001/analyze \
   -H "Content-Type: application/json" \
-  -d '{"text": "My email is test@example.com", "language": "en", "entities": ["EMAIL"]}'
+  -d '{"text": "PESEL: 12345678901", "language": "pl", "entities": ["PL_PESEL"]}'
 
-# 4. Check n8n workflow logs
-docker logs vigil-n8n | grep "PII_Redactor_v2"
+# Test language detector
+curl -X POST http://localhost:5002/detect \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Nazywam się Jan Kowalski", "detailed": true}'
 ```
 
-**Issue: Wrong language detected**
-```bash
-# Check ClickHouse logs for language_stats
-docker exec vigil-clickhouse clickhouse-client -q "
-  SELECT
-    original_input,
-    JSON_VALUE(sanitizer_json, '$.pii.language_stats.detected_language') AS lang,
-    JSON_VALUE(sanitizer_json, '$.pii.language_stats.detection_method') AS method
-  FROM n8n_logs.events_processed
-  ORDER BY timestamp DESC
-  LIMIT 10
-  FORMAT Pretty
-"
+## ClickHouse Logging
+
+### New Columns (v2.0.0)
+
+```sql
+-- Branch scores
+branch_a_score Float32,    -- Heuristics
+branch_b_score Float32,    -- Semantic
+branch_c_score Float32,    -- LLM Guard
+
+-- Arbiter decision
+arbiter_decision String,   -- ALLOW/SANITIZE/BLOCK
+arbiter_confidence Float32,
+
+-- Timing breakdown
+branch_a_timing_ms UInt32,
+branch_b_timing_ms UInt32,
+branch_c_timing_ms UInt32,
+total_timing_ms UInt32
 ```
 
-### Version History
+### Query Examples
 
-**Workflow Versions:**
-- **v1.8.1** (Current): Hybrid language detection (entity-based hints + statistical)
-- **v1.8.1**: Dual-language PII (parallel Presidio calls, entity deduplication)
-- **v1.6.0**: Microsoft Presidio integration (replaced regex-only approach)
-- **v1.5.0**: MEDICAL_MISUSE category, improved PROMPT_LEAK detection
-- **v1.4.0**: Enhanced SQL_XSS_ATTACKS, browser extension support
-- **v1.3.0**: Investigation Panel integration
-- **v1.2.0**: Authentication & RBAC
-- **v1.1.0**: Grafana monitoring, ClickHouse logging
-- **v1.0.0**: Initial release
+```sql
+-- Branch performance analysis
+SELECT
+  arbiter_decision,
+  avg(branch_a_score) as avg_heuristics,
+  avg(branch_b_score) as avg_semantic,
+  avg(branch_c_score) as avg_llm_guard,
+  avg(total_timing_ms) as avg_total_ms
+FROM n8n_logs.events_processed
+WHERE timestamp > now() - INTERVAL 1 DAY
+GROUP BY arbiter_decision;
 
-## Workflow Nodes (Key)
-
-### Pattern_Matching_Engine
-- Regex matching against 29+ categories
-- Encoding detection bonus (+45 base64, +30 URL, +35 hex)
-- Score accumulation across categories
-- Logs to `scoreBreakdown.ENCODING_DETECTED`
-
-### Unified Decision Engine
-- Evaluates total score vs thresholds
-- Returns: ALLOW/SANITIZE_LIGHT/SANITIZE_HEAVY/BLOCK
-- Factors: base_weight × multiplier per category
-
-### Sanitization_Enforcement
-- LIGHT: Removes LOW/MEDIUM severity patterns (10 categories)
-- HEAVY: Removes ALL detected patterns (33 categories)
-- Uses patterns from Pattern_Matching_Engine (not hardcoded)
-
-## Best Practices
-1. **Always write tests first** (TDD approach)
-2. **Config edits:** Direct editing OK for dev/testing; suggest Web UI for production tuning variables
-3. **Test in n8n chat** before production
-4. **Monitor ClickHouse logs** for false positives
-5. **Document pattern rationale** in git commits
-6. **Keep base_weight conservative** (30-60 range)
-7. **Use multipliers** for severity adjustment (1.0-2.0)
-
-## Integration Points
-- **ClickHouse**: Logs to `n8n_logs.events_processed` table
-- **Prompt Guard API**: External LLM validation (optional)
-- **Web UI**: Configuration management via REST API
-- **Browser Extension**: Webhook endpoint for client-side protection
+-- Degraded branch detection
+SELECT
+  count() as total,
+  countIf(branch_a_timing_ms > 1000) as a_timeout,
+  countIf(branch_b_timing_ms > 2000) as b_timeout,
+  countIf(branch_c_timing_ms > 3000) as c_timeout
+FROM n8n_logs.events_processed
+WHERE timestamp > now() - INTERVAL 1 HOUR;
+```
 
 ## Troubleshooting
 
-### Pattern Not Triggering
+### Branch Not Responding
+
 ```bash
-# 1. Verify pattern syntax
-echo "test payload" | grep -P "your_regex_pattern"
+# 1. Check service health
+docker ps | grep -E "(heuristics|semantic|prompt-guard)"
 
-# 2. Check category is enabled
-curl http://localhost:8787/api/parse/rules.config.json
+# 2. Check service logs
+docker logs vigil-heuristics-service 2>&1 | tail -50
+docker logs vigil-semantic-service 2>&1 | tail -50
+docker logs vigil-prompt-guard-api 2>&1 | tail -50
 
-# 3. Verify scoring in n8n chat
-# Send test prompt → check scoreBreakdown in response
+# 3. Test connectivity from n8n container
+docker exec vigil-n8n curl -s http://heuristics-service:5005/health
+docker exec vigil-n8n curl -s http://semantic-service:5006/health
+docker exec vigil-n8n curl -s http://prompt-guard-api:8000/health
 ```
 
-### False Positives
-```bash
-# Report via GUI:
-# http://localhost/ui/monitoring → Investigation Panel
-# → Search for prompt → Click "Report False Positive"
+### Unexpected Decision
 
-# Check stats:
-# GET /api/feedback/stats
+```bash
+# 1. Get detailed response with decision process
+curl -X POST http://localhost:5678/webhook/vigil-guard \
+  -H "Content-Type: application/json" \
+  -d '{"chatInput": "test", "return_decision_process": true}'
+
+# 2. Check arbiter logic
+# Response includes:
+# - branch_results.A/B/C with individual scores
+# - arbiter_decision with weighted calculation
+# - critical_signals that may override scoring
+
+# 3. Query ClickHouse for historical patterns
+docker exec vigil-clickhouse clickhouse-client -q "
+  SELECT original_input, final_status, branch_a_score, branch_b_score, branch_c_score
+  FROM n8n_logs.events_processed
+  WHERE original_input LIKE '%test%'
+  ORDER BY timestamp DESC
+  LIMIT 5
+"
 ```
+
+### PII Not Detected
+
+```bash
+# 1. Check Presidio health
+curl http://localhost:5001/health
+
+# 2. Check language detector
+curl http://localhost:5002/health
+
+# 3. Test with explicit language
+curl -X POST http://localhost:5001/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "test@example.com", "language": "en", "entities": ["EMAIL"]}'
+
+# 4. Check pii.conf patterns
+cat services/workflow/config/pii.conf | jq '.patterns'
+```
+
+## Best Practices
+
+1. **Understand branch weights** - A:30%, B:35%, C:35%
+2. **Monitor degraded states** - Branches fail gracefully with score=0
+3. **Use critical signals** - Override scoring for definite threats
+4. **Test all 3 branches** - Don't assume one branch is enough
+5. **Check timing** - Branch timeouts indicate service issues
+6. **Config via Web UI** - Never edit unified_config.json directly
+7. **Document pattern rationale** - Git commits explain why
 
 ## Related Skills
+
 - `vigil-testing-e2e` - For writing comprehensive tests
-- `clickhouse-grafana-monitoring` - For analyzing detection metrics
-- `react-tailwind-vigil-ui` - For GUI configuration interface
-- `vigil-security-patterns` - For security best practices
+- `clickhouse-grafana-monitoring` - For analyzing branch metrics
+- `docker-vigil-orchestration` - For service management (11 containers)
+- `presidio-pii-specialist` - For PII detection configuration
 
 ## References
-- Workflow JSON: `services/workflow/workflows/Vigil-Guard-v1.4.json`
-- Config docs: `docs/CONFIGURATION.md`
-- Detection guide: `docs/DETECTION_CATEGORIES.md`
-- Sanitization fix: `docs/SANITIZATION_FIX_2025-10-20.md`
+
+- Workflow JSON: `services/workflow/workflows/Vigil Guard v2.0.0.json`
+- Config: `services/workflow/config/unified_config.json` (303 lines, v5.0.0)
+- PII Config: `services/workflow/config/pii.conf` (361 lines)
+- Heuristics Service: `services/heuristics-service/`
+- Semantic Service: `services/semantic-service/`
+
+## Version History
+
+- **v2.0.0** (Current): 3-Branch Parallel Detection, Arbiter v2, 24 nodes
+- **v1.8.1**: Hybrid language detection (entity-based hints + statistical)
+- **v1.6.11**: Dual-language PII (parallel Presidio calls)
+- **v1.6.0**: Microsoft Presidio integration
+- **v1.5.0**: MEDICAL_MISUSE category
+- **v1.4.0**: Enhanced SQL_XSS_ATTACKS

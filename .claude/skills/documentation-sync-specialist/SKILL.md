@@ -1,66 +1,96 @@
 ---
 name: documentation-sync-specialist
-description: Automated documentation maintenance for Vigil Guard's 59 .md files. Use for syncing docs with code changes, version updates, API generation, cross-reference validation, and documentation creation.
-version: 1.6.11
+description: Automated documentation maintenance for Vigil Guard v2.0.0's documentation files. Use for syncing docs with code changes, version updates, API generation, cross-reference validation, 3-branch architecture docs, and documentation creation.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Documentation Synchronization Specialist
+# Documentation Synchronization Specialist (v2.0.0)
 
 ## Overview
-Automated documentation maintenance for Vigil Guard's 59 .md files, ensuring consistency with codebase changes, version updates, and API modifications.
+
+Automated documentation maintenance for Vigil Guard's documentation files, ensuring consistency with v2.0.0 codebase changes, 3-branch architecture updates, and API modifications.
 
 ## When to Use This Skill
+
 - Auto-updating docs after code changes
 - Synchronizing version numbers across files
 - Generating API.md from Express routes
 - Flagging outdated documentation sections
 - Maintaining cross-reference consistency
 - Creating documentation for new features
+- Documenting 3-branch architecture (v2.0.0)
 
-## Documentation Structure (59 files)
+## v2.0.0 Architecture Documentation
 
-### Core Documentation (docs/)
+### Key Changes to Document
+
+```yaml
+v1.x → v2.0.0 Documentation Updates:
+
+Architecture:
+  - 40-node sequential → 24-node 3-branch parallel
+  - 6-9 services → 11 Docker services
+  - New branch services: heuristics-service, semantic-service
+
+Configuration:
+  - rules.config.json (829 lines) → REMOVED/merged
+  - unified_config.json: 246 → 303 lines, v5.0.0
+  - pii.conf: 247 → 361 lines
+
+Testing:
+  - 100+ tests → 8 E2E test files
+  - New: arbiter-decision.test.js
+
+New Concepts:
+  - 3-Branch Detection (A:30%, B:35%, C:35%)
+  - Arbiter v2 Decision Engine
+  - Branch degradation handling
+  - Weighted fusion scoring
+```
+
+### Documentation Structure
+
 ```
 docs/
-├── QUICKSTART.md (8KB)           # 5-minute setup guide
-├── USER_GUIDE.md (47KB)          # Complete manual
-├── API.md (15KB)                 # REST API reference
-├── ARCHITECTURE_v1.8.1.md (48KB) # System architecture
-├── DETECTION_CATEGORIES.md (17KB) # 34 threat categories
-├── PII_DETECTION.md (21KB)       # Dual-language PII
-├── CLICKHOUSE_RETENTION.md (12KB) # Data lifecycle
-├── CONFIGURATION.md (32KB)       # Variable reference
-├── AUTHENTICATION.md (10KB)      # JWT + RBAC
-├── SECURITY.md (19KB)            # Best practices
-├── DOCKER.md (14KB)              # Container orchestration
-├── GRAFANA_SETUP.md (21KB)       # Dashboard setup
-├── INSTALLATION.md (16KB)        # Step-by-step
-├── MAINTENANCE.md (7.2KB)        # Operations
-├── MIGRATION_v*.md               # Version upgrades
-├── TROUBLESHOOTING.md (12KB)     # Common issues
-└── ... (10+ more)
+├── QUICKSTART.md              # 5-minute setup (v2.0.0)
+├── USER_GUIDE.md              # Complete manual
+├── API.md                     # REST API reference
+├── ARCHITECTURE_v2.0.0.md     # 3-branch system architecture
+├── DETECTION_CATEGORIES.md    # Patterns in unified_config.json
+├── PII_DETECTION.md           # Dual-language PII
+├── CLICKHOUSE_RETENTION.md    # Data lifecycle
+├── CONFIGURATION.md           # Variable reference
+├── AUTHENTICATION.md          # JWT + RBAC
+├── SECURITY.md                # Best practices
+├── DOCKER.md                  # 11 containers orchestration
+├── GRAFANA_SETUP.md           # Dashboard setup
+├── INSTALLATION.md            # Step-by-step
+├── MAINTENANCE.md             # Operations
+├── MIGRATION_v2.0.0.md        # v1.x → v2.0.0 upgrade
+├── TROUBLESHOOTING.md         # Common issues
+└── ... (additional files)
 ```
 
 ## Common Tasks
 
-### Task 1: Version Number Update
+### Task 1: Version Number Update (v2.0.0)
 
-**Trigger:** Version bump in package.json or workflow JSON
+**Trigger:** Version bump to v2.0.0
 
 ```bash
 # Detect version change
 OLD_VERSION="v1.8.1"
-NEW_VERSION="v1.8.1"
+NEW_VERSION="v2.0.0"
 
 # Update all references
 find docs/ -name "*.md" -type f -exec sed -i '' "s/$OLD_VERSION/$NEW_VERSION/g" {} \;
 
-# Files typically affected (15+):
-# - ARCHITECTURE_v1.8.1.md → rename to v1.8.1
+# Files typically affected:
+# - ARCHITECTURE_v1.8.1.md → rename to ARCHITECTURE_v2.0.0.md
 # - USER_GUIDE.md (version references)
 # - QUICKSTART.md (version in examples)
-# - MIGRATION_v1.8.1.md (new file)
+# - MIGRATION_v2.0.0.md (new file)
 # - CLAUDE.md (version history)
 ```
 
@@ -68,270 +98,195 @@ find docs/ -name "*.md" -type f -exec sed -i '' "s/$OLD_VERSION/$NEW_VERSION/g" 
 ```yaml
 on_version_bump:
   1. Grep all .md files for old version
-  2. Replace with new version
+  2. Replace with new version (v2.0.0)
   3. Rename ARCHITECTURE_v*.md if needed
-  4. Create MIGRATION_v*.md from template
+  4. Create MIGRATION_v2.0.0.md from template
   5. Update CLAUDE.md version history
-  6. Commit: "docs: update version references to v1.8.1"
+  6. Commit: "docs: update version references to v2.0.0"
 ```
 
-### Task 2: API Documentation Generation
+### Task 2: 3-Branch Architecture Documentation
+
+**New sections for ARCHITECTURE_v2.0.0.md:**
+
+```markdown
+## 3-Branch Parallel Detection Pipeline
+
+### Overview
+```
+Input → Validator → 3-Branch Executor (PARALLEL)
+                         ├── Branch A: Heuristics (:5005) - 30%
+                         ├── Branch B: Semantic (:5006) - 35%
+                         └── Branch C: LLM Guard (:8000) - 35%
+                                    ↓
+                    Arbiter v2 → Decision → PII → Output
+```
+
+### Branch Specifications
+
+| Branch | Service | Port | Weight | Timeout | Function |
+|--------|---------|------|--------|---------|----------|
+| A | heuristics-service | 5005 | 30% | 1000ms | Pattern matching |
+| B | semantic-service | 5006 | 35% | 2000ms | Embedding similarity |
+| C | prompt-guard-api | 8000 | 35% | 3000ms | LLM validation |
+
+### Arbiter v2 Decision Logic
+- **BLOCK:** Weighted score >= 70
+- **SANITIZE:** Weighted score 30-69
+- **ALLOW:** Weighted score < 30
+```
+
+### Task 3: API Documentation Generation
 
 **Trigger:** New endpoint added to Express backend
 
 ```typescript
 // Source: services/web-ui/backend/src/server.ts
-app.post('/api/retention/cleanup', authMiddleware, retentionCleanup);
+// New v2.0.0 endpoints:
 
-// Extract to API.md:
-/**
- * POST /api/retention/cleanup
- * Force immediate TTL cleanup
- *
- * Request:
- * {
- *   "table": "all" | "events_raw" | "events_processed"
- * }
- *
- * Response:
- * {
- *   "success": true,
- *   "message": "Cleanup triggered",
- *   "tables_affected": ["events_raw", "events_processed"]
- * }
- *
- * Auth: JWT required
- * Permissions: can_view_configuration
- */
+// Branch health check
+app.get('/api/health/branches', authMiddleware, branchHealthHandler);
+
+// Branch analysis proxies
+app.post('/api/analyze/heuristics', authMiddleware, heuristicsHandler);
+app.post('/api/analyze/semantic', authMiddleware, semanticHandler);
+
+// Branch metrics
+app.get('/api/metrics/branches', authMiddleware, branchMetricsHandler);
 ```
 
-**Automation Script:**
-```bash
-#!/bin/bash
-# scripts/generate-api-docs.sh
+**Generate API.md section:**
+```markdown
+## Branch Services API (v2.0.0)
 
-# Extract routes from server.ts
-grep -E "app\.(get|post|put|delete)" services/web-ui/backend/src/server.ts \
-  | sed 's/.*app\.\([a-z]*\).*['"'"'"]\/api\/\([^'"'"'"]*\)['"'"'"].*/\1 \/api\/\2/' \
-  | sort -u > /tmp/api-endpoints.txt
+### GET /api/health/branches
+Check health status of all 3 branch detection services.
 
-# Generate markdown table
-echo "## API Endpoints" > docs/API_GENERATED.md
-echo "" >> docs/API_GENERATED.md
-echo "| Method | Endpoint | Auth | Permission |" >> docs/API_GENERATED.md
-echo "|--------|----------|------|------------|" >> docs/API_GENERATED.md
-
-# Merge with manual docs
-cat docs/API_GENERATED.md docs/API_MANUAL.md > docs/API.md
+**Response:**
+```json
+{
+  "branch_a": { "name": "Heuristics", "port": 5005, "healthy": true },
+  "branch_b": { "name": "Semantic", "port": 5006, "healthy": true },
+  "branch_c": { "name": "LLM Guard", "port": 8000, "healthy": true }
+}
 ```
 
-### Task 3: Config Variable Documentation
+### POST /api/analyze/heuristics
+Test heuristics service (Branch A) directly.
+
+**Request:**
+```json
+{
+  "text": "input to analyze",
+  "request_id": "test-123"
+}
+```
+```
+
+### Task 4: Config Variable Documentation
 
 **Trigger:** New variable added to variables.json
 
 ```json
-// Source: services/web-ui/frontend/src/spec/variables.json
+// v2.0.0 new variables
 {
-  "name": "events_raw_ttl_days",
-  "key": "events_raw_ttl_days",
+  "name": "branch_a_weight",
+  "key": "branch_a_weight",
   "type": "number",
-  "default": 90,
-  "description": "Retention period for raw events (1-3650 days)",
-  "group": "Data Retention"
-}
-
-// Generate docs/CONFIGURATION.md section:
-### events_raw_ttl_days
-- **Type:** Number
-- **Default:** 90
-- **Range:** 1-3650
-- **Group:** Data Retention
-- **Description:** Retention period for raw events in ClickHouse
-
-Controls how long raw webhook inputs are stored in `n8n_logs.events_raw`
-table before automatic TTL deletion.
-
-**Example:**
-```json
+  "default": 0.30,
+  "description": "Heuristics branch weight in arbiter fusion (0.0-1.0)",
+  "group": "3-Branch Detection"
+},
 {
-  "events_raw_ttl_days": 90
+  "name": "arbiter_block_threshold",
+  "key": "arbiter_block_threshold",
+  "type": "number",
+  "default": 70,
+  "description": "Minimum weighted score for BLOCK decision",
+  "group": "3-Branch Detection"
 }
 ```
-```
 
-**Automation:**
-```javascript
-// scripts/sync-config-docs.js
-const variables = require('../services/web-ui/frontend/src/spec/variables.json');
-const fs = require('fs');
+### Task 5: Migration Guide (v1.x → v2.0.0)
 
-let markdown = '# Configuration Variables\n\n';
-
-const groups = {};
-variables.forEach(v => {
-  if (!groups[v.group]) groups[v.group] = [];
-  groups[v.group].push(v);
-});
-
-for (const [group, vars] of Object.entries(groups)) {
-  markdown += `## ${group}\n\n`;
-
-  vars.forEach(v => {
-    markdown += `### ${v.name}\n`;
-    markdown += `- **Type:** ${v.type}\n`;
-    markdown += `- **Default:** ${v.default}\n`;
-    if (v.min !== undefined) markdown += `- **Range:** ${v.min}-${v.max}\n`;
-    markdown += `- **Description:** ${v.description}\n\n`;
-  });
-}
-
-fs.writeFileSync('docs/CONFIGURATION.md', markdown);
-console.log('✅ Configuration docs updated');
-```
-
-### Task 4: Detect Outdated Sections
-
-**Strategy: Grep for code references in docs**
-
-```bash
-#!/bin/bash
-# scripts/check-doc-freshness.sh
-
-# Example: Check if docker-compose.yml changes require doc updates
-DOCKER_COMPOSE_HASH=$(md5sum docker-compose.yml | awk '{print $1}')
-DOC_HASH=$(grep "docker-compose.yml hash:" docs/DOCKER.md | awk '{print $3}')
-
-if [ "$DOCKER_COMPOSE_HASH" != "$DOC_HASH" ]; then
-  echo "⚠️  DOCKER.md is outdated (docker-compose.yml changed)"
-  echo "Update docs/DOCKER.md and add hash comment:"
-  echo "<!-- docker-compose.yml hash: $DOCKER_COMPOSE_HASH -->"
-fi
-
-# Example: Check if new services were added
-SERVICES_COUNT=$(yq '.services | length' docker-compose.yml)
-DOC_SERVICES_COUNT=$(grep -c "^### " docs/DOCKER.md)
-
-if [ "$SERVICES_COUNT" -gt "$DOC_SERVICES_COUNT" ]; then
-  echo "⚠️  DOCKER.md missing service documentation"
-  echo "Services in docker-compose.yml: $SERVICES_COUNT"
-  echo "Services in docs: $DOC_SERVICES_COUNT"
-fi
-```
-
-### Task 5: Cross-Reference Validation
-
-**Check for broken internal links**
-
-```bash
-#!/bin/bash
-# scripts/validate-doc-links.sh
-
-# Find all markdown links
-grep -roh '\[.*\]([^)]*.md[^)]*)' docs/ | sed 's/.*(\(.*\))/\1/' | sort -u > /tmp/doc-links.txt
-
-# Check if referenced files exist
-while read link; do
-  # Handle relative paths
-  if [[ "$link" == /* ]]; then
-    FILE="$link"
-  else
-    FILE="docs/$link"
-  fi
-
-  if [ ! -f "$FILE" ]; then
-    echo "❌ Broken link: $link"
-    grep -rn "$link" docs/
-  fi
-done < /tmp/doc-links.txt
-
-echo "✅ Cross-reference validation complete"
-```
-
-## Documentation Patterns
-
-### Pattern 1: Incremental Guides
-
-```
-QUICKSTART.md (5 min)
-    ↓
-USER_GUIDE.md (1 hour)
-    ↓
-ARCHITECTURE.md (deep dive)
-```
-
-**Maintain consistency:**
-- QUICKSTART examples must work in USER_GUIDE
-- USER_GUIDE references ARCHITECTURE for details
-- ARCHITECTURE cites code line numbers
-
-### Pattern 2: Feature-Specific Docs
-
-**Template: `docs/FEATURE_NAME.md`**
+**Template: `docs/MIGRATION_v2.0.0.md`**
 
 ```markdown
-# Feature Name
-
-## Overview
-Brief description (2-3 sentences)
-
-## When to Use
-- Use case 1
-- Use case 2
-
-## Configuration
-```json
-{
-  "setting": "value"
-}
-```
-
-## Examples
-### Example 1: Common scenario
-```bash
-commands here
-```
-
-## Troubleshooting
-### Issue 1
-**Problem:** Description
-**Solution:** Steps to fix
-
-## References
-- Related docs: [LINK](./OTHER.md)
-- Code: `path/to/file.ts:123`
-```
-
-### Pattern 3: Migration Guides
-
-**Template: `docs/MIGRATION_vX.X.X.md`**
-
-```markdown
-# Migration Guide: v1.8.1 → v1.8.1
+# Migration Guide: v1.8.1 → v2.0.0
 
 ## Breaking Changes
-- [ ] ClickHouse schema: Add `pii_sanitized` column
-- [ ] Workflow: Import new v1.8.1 JSON
-- [ ] Frontend: Clear localStorage (auth token format changed)
+- [ ] Architecture: 40-node sequential → 24-node 3-branch parallel
+- [ ] Config: rules.config.json removed (merged into unified_config.json)
+- [ ] Services: 2 new containers (heuristics-service, semantic-service)
+- [ ] ClickHouse schema: Add branch columns
 
 ## Database Migrations
 ```sql
 -- Run in ClickHouse
 ALTER TABLE n8n_logs.events_processed
-  ADD COLUMN pii_sanitized UInt8 DEFAULT 0;
+  ADD COLUMN branch_a_score Float32 DEFAULT 0,
+  ADD COLUMN branch_b_score Float32 DEFAULT 0,
+  ADD COLUMN branch_c_score Float32 DEFAULT 0,
+  ADD COLUMN arbiter_decision String DEFAULT '';
 ```
 
-## Rollback Procedure
+## Service Updates
 ```bash
-# If issues occur, revert to v1.8.1
-docker-compose down
-git checkout v1.8.1
-docker-compose up -d
+# Pull new images
+docker-compose pull
+
+# Start new services
+docker-compose up -d heuristics-service semantic-service
 ```
+
+## Workflow Import
+1. Export old workflow from n8n
+2. Import: `services/workflow/workflows/Vigil Guard v2.0.0.json`
+3. Verify 24 nodes visible
 
 ## Verification
-- [ ] Workflow version: `SELECT pipeline_version FROM events_processed LIMIT 1`
-- [ ] New column exists: `DESCRIBE events_processed`
-- [ ] Frontend loads: http://localhost/ui
+- [ ] Branch health: `curl http://localhost/api/health/branches`
+- [ ] Arbiter decision in logs: `SELECT arbiter_decision FROM events_processed LIMIT 1`
+- [ ] All 11 services running: `./scripts/status.sh`
+```
+
+## Integration with Other Skills
+
+### With workflow-json-architect:
+```yaml
+When: Workflow JSON modified (24 nodes)
+Action:
+  - Update ARCHITECTURE_v2.0.0.md (node descriptions)
+  - Update USER_GUIDE.md (workflow examples)
+  - Create MIGRATION.md if breaking changes
+```
+
+### With pattern-library-manager:
+```yaml
+When: New detection pattern added to unified_config.json
+Action:
+  - Update DETECTION_CATEGORIES.md (category list)
+  - Update CONFIGURATION.md (new config variables)
+  - Note: patterns now in unified_config.json v5.0.0
+```
+
+### With docker-vigil-orchestration:
+```yaml
+When: Docker configuration changed (11 services)
+Action:
+  - Update DOCKER.md (service descriptions)
+  - Add heuristics-service (port 5005)
+  - Add semantic-service (port 5006)
+  - Update port reference table
+```
+
+### With express-api-developer:
+```yaml
+When: New API endpoint added
+Action:
+  - Regenerate API.md (routes table)
+  - Add branch service endpoints (v2.0.0)
+  - Update AUTHENTICATION.md (if auth required)
 ```
 
 ## Automation Workflows
@@ -348,68 +303,18 @@ actions:
   5. Create PR with doc updates or TODO comments
 ```
 
-**Example:**
-```bash
-# Commit: "feat(workflow): add browser fingerprinting"
-# Triggers:
-- Check docs/ARCHITECTURE*.md for "Input_Validator" references
-- Check docs/USER_GUIDE.md for "webhook" examples
-- Generate MIGRATION_v1.8.1.md section
-- Update CLAUDE.md version history
-```
-
-### Workflow 2: Weekly Audit
+### Workflow 2: Release Preparation (v2.0.0)
 
 ```yaml
-schedule: Every Monday 9am
+trigger: Tag v2.0.0 created
 actions:
-  1. Run all validation scripts
-  2. Check version consistency (15+ files)
-  3. Validate cross-references
-  4. Generate freshness report
-  5. Create GitHub issue if discrepancies found
-```
-
-### Workflow 3: Release Preparation
-
-```yaml
-trigger: Tag vX.X.X created
-actions:
-  1. Update all version references
+  1. Update all version references to v2.0.0
   2. Generate CHANGELOG.md from commits
-  3. Create MIGRATION_vX.X.X.md from template
+  3. Create MIGRATION_v2.0.0.md from template
   4. Update README.md badges
   5. Verify API.md matches server.ts routes
-  6. Commit: "docs: prepare for vX.X.X release"
-```
-
-## Integration with Other Skills
-
-### With `workflow-json-architect`:
-```yaml
-When: Workflow JSON modified
-Action:
-  - Update ARCHITECTURE.md (node count, new nodes)
-  - Update USER_GUIDE.md (workflow examples)
-  - Create MIGRATION.md if breaking changes
-```
-
-### With `pattern-library-manager`:
-```yaml
-When: New detection category added
-Action:
-  - Update DETECTION_CATEGORIES.md (add section)
-  - Update CONFIGURATION.md (new config variables)
-  - Update USER_GUIDE.md (detection examples)
-```
-
-### With `express-api-developer`:
-```yaml
-When: New API endpoint added
-Action:
-  - Regenerate API.md (routes table)
-  - Update AUTHENTICATION.md (if auth required)
-  - Update USER_GUIDE.md (usage examples)
+  6. Document 3-branch architecture
+  7. Commit: "docs: prepare for v2.0.0 release"
 ```
 
 ## Metrics & KPIs
@@ -421,79 +326,70 @@ success_metrics:
   broken_links: 0
   auto_update_rate: 95% (5% manual review)
 
-quality_metrics:
-  freshness_score: >90% (code references match docs)
-  completeness: 100% (all public APIs documented)
-  cross_reference_accuracy: 100%
+v2.0.0_specific:
+  3_branch_docs: Complete (architecture, API, migration)
+  unified_config_docs: Updated (303 lines reference)
+  test_docs: Updated (8 E2E files reference)
 ```
 
 ## Troubleshooting
 
-### Issue: Docs out of sync with code
+### Issue: Docs out of sync with v2.0.0 code
 
 **Diagnosis:**
 ```bash
-# Check last doc update vs last code change
-git log --oneline docs/ | head -5
-git log --oneline services/ | head -5
-
-# If code is newer, docs are stale
-```
-
-**Solution:**
-```bash
-# Run all sync scripts
-./scripts/generate-api-docs.sh
-./scripts/sync-config-docs.js
-./scripts/check-doc-freshness.sh
-./scripts/validate-doc-links.sh
-
-# Review changes
-git diff docs/
-
-# Commit updates
-git add docs/
-git commit -m "docs: sync with codebase changes"
-```
-
-### Issue: Version mismatch across files
-
-**Diagnosis:**
-```bash
-# Find all version references
+# Check for old version references
 grep -rn "v1\.[0-9]\+\.[0-9]\+" docs/ | grep -v "Binary"
-
-# Should all be same version
+grep -rn "rules.config.json" docs/  # Should be minimal
+grep -rn "40-node\|40 node" docs/  # Should be 0
 ```
 
 **Solution:**
 ```bash
-# Use sed to replace all at once
+# Update to v2.0.0
 OLD="v1.8.1"
-NEW="v1.8.1"
+NEW="v2.0.0"
 find docs/ -name "*.md" -exec sed -i '' "s/$OLD/$NEW/g" {} \;
 
-# Verify
-grep -rn "v1\.6\.11" docs/ | wc -l  # Should be 0
+# Remove rules.config.json references
+# Replace with unified_config.json
+
+# Update architecture references
+# Replace "40-node" with "24-node 3-branch"
+```
+
+## Quick Reference
+
+```bash
+# Check version consistency
+grep -rn "v[0-9]\+\.[0-9]\+\.[0-9]\+" docs/ | sort -u
+
+# Validate links
+./scripts/validate-doc-links.sh
+
+# Generate API docs
+./scripts/generate-api-docs.sh
+
+# Sync config docs
+./scripts/sync-config-docs.js
 ```
 
 ## Reference Files
 
 ### Documentation Sources
-- Main docs: `docs/*.md` (26 files)
-- Plugin docs: `docs/plugin/*.md` (3 files)
+- Main docs: `docs/*.md`
 - Service docs: `services/*/README.md`
 - Root: `README.md`, `CONTRIBUTING.md`, `CLAUDE.md`
 
-### Automation Scripts
-- `scripts/generate-api-docs.sh`
-- `scripts/sync-config-docs.js`
-- `scripts/check-doc-freshness.sh`
-- `scripts/validate-doc-links.sh`
+### v2.0.0 Key References
+- Workflow: `services/workflow/workflows/Vigil Guard v2.0.0.json` (24 nodes)
+- Config: `services/workflow/config/unified_config.json` (303 lines, v5.0.0)
+- PII: `services/workflow/config/pii.conf` (361 lines)
+- Tests: `services/workflow/tests/e2e/` (8 test files)
 
 ---
 
-**Last Updated:** 2025-11-02
-**Documentation Files:** 59 .md files
-**Automation Level:** 95% (target)
-**Maintained By:** Vigil Guard Documentation Team
+**Last Updated:** 2025-12-09
+**Version:** v2.0.0
+**Architecture:** 3-Branch Parallel Detection (24 nodes)
+**Services:** 11 Docker containers

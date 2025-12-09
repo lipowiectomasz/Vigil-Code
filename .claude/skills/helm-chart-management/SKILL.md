@@ -1,27 +1,31 @@
 ---
 name: helm-chart-management
-description: Helm chart development and management for Vigil Guard. Use when creating Vigil Guard Helm charts, managing chart dependencies, configuring values for different environments, or publishing charts to repositories.
-version: 1.0.0
+description: Helm chart development and management for Vigil Guard v2.0.0. Use when creating Vigil Guard Helm charts, managing chart dependencies for 11 services including heuristics and semantic subcharts, configuring values for different environments, or publishing charts to repositories.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Vigil Guard Helm Chart Management
+# Vigil Guard Helm Chart Management (v2.0.0)
 
 ## Overview
-Project-specific guidance for developing and managing Helm charts for Vigil Guard. This skill bridges the generic helm-expert knowledge with Vigil Guard's specific multi-service architecture.
+
+Project-specific guidance for developing and managing Helm charts for Vigil Guard v2.0.0. This skill bridges the generic helm-expert knowledge with Vigil Guard's 3-branch parallel detection architecture (11 services).
 
 ## When to Use This Skill
+
 - Creating Vigil Guard Helm chart from scratch
-- Packaging existing Docker Compose setup as Helm chart
+- Packaging existing Docker Compose setup (11 services) as Helm chart
 - Managing multi-environment deployments (dev, staging, prod)
-- Configuring chart dependencies (PostgreSQL, Redis if needed)
+- Configuring chart dependencies for 3-branch detection
+- Adding heuristics-service and semantic-service subcharts (v2.0.0)
 - Publishing Vigil Guard chart to Artifact Hub or OCI registry
 - Creating umbrella chart for all Vigil Guard services
-- Templating Vigil Guard configurations
+- Templating Vigil Guard configurations (unified_config.json v5.0.0)
 
-## Vigil Guard Chart Architecture
+## Vigil Guard Chart Architecture (v2.0.0)
 
 ### Recommended Chart Structure
+
 ```
 charts/
 ├── vigil-guard/                    # Umbrella chart
@@ -35,12 +39,14 @@ charts/
 │   │   ├── NOTES.txt
 │   │   ├── _helpers.tpl
 │   │   └── tests/
-│   └── charts/                     # Subcharts
+│   └── charts/                     # Subcharts (11 services)
 │       ├── n8n/
 │       ├── web-ui/
 │       ├── presidio-pii/
 │       ├── language-detector/
 │       ├── prompt-guard/
+│       ├── heuristics-service/     # NEW v2.0.0 - Branch A
+│       ├── semantic-service/       # NEW v2.0.0 - Branch B
 │       ├── clickhouse/
 │       └── grafana/
 └── vigil-guard-common/             # Library chart
@@ -49,15 +55,16 @@ charts/
         └── _common.tpl
 ```
 
-### Chart.yaml (Umbrella Chart)
+### Chart.yaml (Umbrella Chart - v2.0.0)
+
 ```yaml
 apiVersion: v2
 name: vigil-guard
-version: 1.0.0
-appVersion: "1.6.11"
+version: 2.0.0
+appVersion: "2.0.0"
 description: |
   Enterprise-grade prompt injection detection and defense platform
-  for Large Language Model applications.
+  for Large Language Model applications with 3-branch parallel detection.
 type: application
 keywords:
   - security
@@ -65,6 +72,7 @@ keywords:
   - prompt-injection
   - pii-detection
   - ai-safety
+  - 3-branch-detection
 home: https://github.com/vigil-guard/vigil-guard
 sources:
   - https://github.com/vigil-guard/vigil-guard
@@ -75,25 +83,34 @@ icon: https://vigil-guard.example/icon.png
 dependencies:
   # Internal subcharts
   - name: n8n
-    version: "1.x.x"
+    version: "2.x.x"
     repository: "file://charts/n8n"
     condition: n8n.enabled
   - name: web-ui
-    version: "1.x.x"
+    version: "2.x.x"
     repository: "file://charts/web-ui"
     condition: webUI.enabled
   - name: presidio-pii
-    version: "1.x.x"
+    version: "2.x.x"
     repository: "file://charts/presidio-pii"
     condition: presidio.enabled
   - name: language-detector
-    version: "1.x.x"
+    version: "2.x.x"
     repository: "file://charts/language-detector"
     condition: languageDetector.enabled
   - name: prompt-guard
-    version: "1.x.x"
+    version: "2.x.x"
     repository: "file://charts/prompt-guard"
     condition: promptGuard.enabled
+  # v2.0.0: 3-Branch Detection subcharts
+  - name: heuristics-service
+    version: "2.x.x"
+    repository: "file://charts/heuristics-service"
+    condition: heuristics.enabled
+  - name: semantic-service
+    version: "2.x.x"
+    repository: "file://charts/semantic-service"
+    condition: semantic.enabled
   # External dependencies
   - name: clickhouse
     version: "4.x.x"
@@ -105,10 +122,10 @@ dependencies:
     condition: grafana.enabled
 ```
 
-## Master values.yaml
+## Master values.yaml (v2.0.0)
 
 ```yaml
-# values.yaml - Vigil Guard Umbrella Chart
+# values.yaml - Vigil Guard Umbrella Chart v2.0.0
 
 global:
   # Image settings
@@ -117,7 +134,7 @@ global:
   storageClass: ""
 
   # Vigil Guard version
-  vigilVersion: "1.6.11"
+  vigilVersion: "2.0.0"
 
   # Network
   domain: "vigil.example.com"
@@ -130,7 +147,7 @@ global:
     fsGroup: 1000
 
 # ========================================
-# n8n Workflow Engine
+# n8n Workflow Engine (24-node pipeline)
 # ========================================
 n8n:
   enabled: true
@@ -162,10 +179,112 @@ n8n:
     timezone: "Europe/Warsaw"
     webhookUrl: ""  # Auto-generated if empty
 
-  # Workflow configuration
+  # v2.0.0: 24-node workflow configuration
   workflow:
     autoImport: true
     configPath: /home/node/.n8n/config
+    # 3-Branch service URLs
+    heuristicsUrl: "http://vigil-heuristics:5005"
+    semanticUrl: "http://vigil-semantic:5006"
+    promptGuardUrl: "http://vigil-prompt-guard:8000"
+
+# ========================================
+# Heuristics Service (Branch A) - NEW v2.0.0
+# ========================================
+heuristics:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: vigil-guard/heuristics-service
+    tag: ""  # Defaults to global.vigilVersion
+
+  service:
+    type: ClusterIP
+    port: 5005
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  config:
+    # Branch A weight in arbiter fusion
+    weight: 0.30
+    # Pattern matching timeout
+    timeoutMs: 1000
+    # Config file path
+    configPath: /config/unified_config.json
+
+# ========================================
+# Semantic Service (Branch B) - NEW v2.0.0
+# ========================================
+semantic:
+  enabled: true
+  replicaCount: 2
+
+  image:
+    repository: vigil-guard/semantic-service
+    tag: ""  # Defaults to global.vigilVersion
+
+  service:
+    type: ClusterIP
+    port: 5006
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  config:
+    # Branch B weight in arbiter fusion
+    weight: 0.35
+    # Embedding model
+    modelName: "all-MiniLM-L6-v2"
+    embeddingDim: 384
+    # Service timeout
+    timeoutMs: 2000
+
+# ========================================
+# Prompt Guard (Branch C) - LLM Validation
+# ========================================
+promptGuard:
+  enabled: false  # Optional component
+  replicaCount: 1
+
+  image:
+    repository: vigil-guard/prompt-guard-api
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 8Gi
+
+  config:
+    # Branch C weight in arbiter fusion
+    weight: 0.35
+    # Service timeout
+    timeoutMs: 3000
+    modelPath: /models/prompt-guard
+
+  # Model download job
+  modelDownload:
+    enabled: true
+    image: curlimages/curl:latest
 
 # ========================================
 # Web UI (Frontend + Backend)
@@ -215,7 +334,11 @@ presidio:
 
   image:
     repository: vigil-guard/presidio-pii-api
-    tag: "1.8.1"
+    tag: "2.0.0"
+
+  service:
+    type: ClusterIP
+    port: 5001
 
   resources:
     requests:
@@ -244,6 +367,10 @@ languageDetector:
     repository: vigil-guard/language-detector
     tag: "1.0.1"
 
+  service:
+    type: ClusterIP
+    port: 5002
+
   resources:
     requests:
       cpu: 100m
@@ -253,34 +380,22 @@ languageDetector:
       memory: 512Mi
 
 # ========================================
-# Prompt Guard (LLM Validation)
+# Arbiter Configuration (v2.0.0)
 # ========================================
-promptGuard:
-  enabled: false  # Optional component
-  replicaCount: 1
-
-  image:
-    repository: vigil-guard/prompt-guard-api
-    tag: ""
-
-  resources:
-    requests:
-      cpu: 500m
-      memory: 2Gi
-    limits:
-      cpu: 2000m
-      memory: 8Gi
-
-  config:
-    modelPath: /models/prompt-guard
-
-  # Model download job
-  modelDownload:
-    enabled: true
-    image: curlimages/curl:latest
+arbiter:
+  # Decision thresholds
+  blockThreshold: 70
+  sanitizeThreshold: 30
+  # Branch weights (must sum to 1.0)
+  branchWeights:
+    a: 0.30  # Heuristics
+    b: 0.35  # Semantic
+    c: 0.35  # LLM Guard
+  # Degradation behavior
+  failsafeDecision: "BLOCK"  # When all branches fail
 
 # ========================================
-# ClickHouse Analytics
+# ClickHouse Analytics (v2.0.0 Schema)
 # ========================================
 clickhouse:
   enabled: true
@@ -304,12 +419,34 @@ clickhouse:
       cpu: 2000m
       memory: 8Gi
 
-  # Custom init scripts for Vigil Guard schema
+  # v2.0.0: Custom init scripts with branch columns
   initdbScripts:
     init-vigil.sql: |
       CREATE DATABASE IF NOT EXISTS n8n_logs;
-      CREATE TABLE IF NOT EXISTS n8n_logs.events_raw (...);
-      CREATE TABLE IF NOT EXISTS n8n_logs.events_processed (...);
+
+      CREATE TABLE IF NOT EXISTS n8n_logs.events_processed (
+        timestamp DateTime64(3),
+        sessionId String,
+        original_input String,
+        final_status String,
+        threat_score Float32,
+        -- v2.0.0: 3-Branch columns
+        branch_a_score Float32 DEFAULT 0,
+        branch_b_score Float32 DEFAULT 0,
+        branch_c_score Float32 DEFAULT 0,
+        branch_a_timing_ms UInt32 DEFAULT 0,
+        branch_b_timing_ms UInt32 DEFAULT 0,
+        branch_c_timing_ms UInt32 DEFAULT 0,
+        arbiter_decision String DEFAULT '',
+        -- PII columns
+        pii_detected UInt8 DEFAULT 0,
+        pii_entities String DEFAULT '[]',
+        detected_language String DEFAULT '',
+        pipeline_version String DEFAULT '2.0.0'
+      ) ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (timestamp, sessionId)
+      TTL timestamp + INTERVAL 90 DAY;
 
 # ========================================
 # Grafana Monitoring
@@ -346,6 +483,55 @@ grafana:
 
   dashboardsConfigMaps:
     vigil-guard: vigil-grafana-dashboards
+
+# ========================================
+# Workflow Configuration (v2.0.0)
+# ========================================
+workflow:
+  config:
+    # v2.0.0: unified_config.json v5.0.0 (303 lines - patterns merged)
+    unified:
+      version: "5.0.0"
+      normalization:
+        unicode_form: "NFKC"
+        max_iterations: 3
+      thresholds:
+        allow_max: 29
+        sanitize_light_max: 64
+        sanitize_heavy_max: 84
+        block_min: 85
+      pii_detection:
+        presidio_enabled: true
+        dual_language_mode: true
+        languages: ["pl", "en"]
+      arbiter:
+        branch_a_weight: 0.30
+        branch_b_weight: 0.35
+        branch_c_weight: 0.35
+        block_threshold: 70
+        sanitize_threshold: 30
+      categories:
+        SQL_XSS_ATTACKS:
+          base_weight: 50
+          multiplier: 1.3
+        PROMPT_INJECTION:
+          base_weight: 60
+          multiplier: 1.5
+    # v2.0.0: pii.conf (361 lines)
+    pii:
+      entities:
+        - PERSON
+        - EMAIL
+        - PHONE
+        - PESEL
+        - NIP
+        - REGON
+        - CREDIT_CARD
+        - IBAN
+      languages:
+        - pl
+        - en
+      score_threshold: 0.7
 
 # ========================================
 # Ingress Configuration
@@ -410,13 +596,15 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
 ```
 
-## Environment-Specific Values
+## Environment-Specific Values (v2.0.0)
 
 ### values-dev.yaml
+
 ```yaml
 global:
   domain: "vigil-dev.example.com"
   tlsEnabled: false
+  vigilVersion: "2.0.0"
 
 n8n:
   replicaCount: 1
@@ -424,6 +612,24 @@ n8n:
     requests:
       cpu: 100m
       memory: 256Mi
+
+# v2.0.0: 3-Branch Detection (reduced replicas for dev)
+heuristics:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+semantic:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+promptGuard:
+  enabled: false  # Disable Branch C in dev for speed
 
 webUI:
   frontend:
@@ -447,10 +653,12 @@ ingress:
 ```
 
 ### values-prod.yaml
+
 ```yaml
 global:
   domain: "vigil.example.com"
   tlsEnabled: true
+  vigilVersion: "2.0.0"
 
 n8n:
   resources:
@@ -460,6 +668,38 @@ n8n:
     limits:
       cpu: 2000m
       memory: 4Gi
+
+# v2.0.0: 3-Branch Detection (full production)
+heuristics:
+  replicaCount: 4
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+semantic:
+  replicaCount: 4
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+promptGuard:
+  enabled: true  # Enable Branch C in production
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 4Gi
+    limits:
+      cpu: 4000m
+      memory: 16Gi
 
 webUI:
   frontend:
@@ -495,9 +735,10 @@ podDisruptionBudget:
   minAvailable: 2
 ```
 
-## Common Tasks
+## Common Tasks (v2.0.0)
 
 ### Create Vigil Guard Chart from Scratch
+
 ```bash
 # 1. Create chart structure
 helm create charts/vigil-guard
@@ -506,16 +747,16 @@ cd charts/vigil-guard
 # 2. Remove default templates (we'll create custom ones)
 rm -rf templates/*.yaml
 
-# 3. Create subchart directories
-mkdir -p charts/{n8n,web-ui,presidio-pii,language-detector}
+# 3. Create subchart directories (11 services)
+mkdir -p charts/{n8n,web-ui,presidio-pii,language-detector,prompt-guard,heuristics-service,semantic-service}
 
 # 4. For each subchart:
-for chart in n8n web-ui presidio-pii language-detector; do
+for chart in n8n web-ui presidio-pii language-detector prompt-guard heuristics-service semantic-service; do
   helm create charts/$chart
   # Customize templates for each service
 done
 
-# 5. Update Chart.yaml with dependencies
+# 5. Update Chart.yaml with dependencies (including v2.0.0 branches)
 
 # 6. Update umbrella chart dependencies
 helm dependency update .
@@ -527,13 +768,130 @@ helm lint .
 helm template vigil-guard . -f values-dev.yaml
 ```
 
-### Package and Publish Chart
+### Create Heuristics Service Subchart (v2.0.0)
+
+```bash
+# charts/heuristics-service/Chart.yaml
+apiVersion: v2
+name: heuristics-service
+version: 2.0.0
+appVersion: "2.0.0"
+description: Heuristics pattern matching service (Branch A) for Vigil Guard
+type: application
+```
+
+```yaml
+# charts/heuristics-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "heuristics-service.fullname" . }}
+  labels:
+    {{- include "heuristics-service.labels" . | nindent 4 }}
+    branch: "a"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "heuristics-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "heuristics-service.selectorLabels" . | nindent 8 }}
+        branch: "a"
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: "{{ .Values.service.port }}"
+            - name: PATTERN_TIMEOUT_MS
+              value: "{{ .Values.config.timeoutMs }}"
+            - name: CONFIG_PATH
+              value: "{{ .Values.config.configPath }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: workflow-config
+              mountPath: /config
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+      volumes:
+        - name: workflow-config
+          configMap:
+            name: {{ .Release.Name }}-workflow-config
+```
+
+### Create Semantic Service Subchart (v2.0.0)
+
+```yaml
+# charts/semantic-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "semantic-service.fullname" . }}
+  labels:
+    {{- include "semantic-service.labels" . | nindent 4 }}
+    branch: "b"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "semantic-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "semantic-service.selectorLabels" . | nindent 8 }}
+        branch: "b"
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: "{{ .Values.service.port }}"
+            - name: MODEL_NAME
+              value: "{{ .Values.config.modelName }}"
+            - name: EMBEDDING_DIM
+              value: "{{ .Values.config.embeddingDim }}"
+            - name: TIMEOUT_MS
+              value: "{{ .Values.config.timeoutMs }}"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 20
+```
+
+### Package and Publish Chart (v2.0.0)
+
 ```bash
 # 1. Package chart
 helm package charts/vigil-guard
 
 # 2. Push to OCI registry
-helm push vigil-guard-1.0.0.tgz oci://registry.example.com/charts
+helm push vigil-guard-2.0.0.tgz oci://registry.example.com/charts
 
 # 3. Or publish to chart repository
 helm repo index . --url https://charts.example.com
@@ -545,6 +903,7 @@ helm repo update
 ```
 
 ### Deploy to Different Environments
+
 ```bash
 # Development
 helm upgrade --install vigil-guard ./charts/vigil-guard \
@@ -568,22 +927,33 @@ helm upgrade --install vigil-guard ./charts/vigil-guard \
   --wait
 ```
 
-### Upgrade with Custom Values
+### Upgrade with Custom Values (v2.0.0)
+
 ```bash
 # Override specific values
 helm upgrade vigil-guard ./charts/vigil-guard \
   -f values-prod.yaml \
-  --set presidio.replicaCount=6 \
-  --set global.vigilVersion=1.7.0 \
+  --set heuristics.replicaCount=6 \
+  --set semantic.replicaCount=6 \
+  --set global.vigilVersion=2.0.0 \
   -n vigil-prod
 
 # Check diff before upgrade
 helm diff upgrade vigil-guard ./charts/vigil-guard \
   -f values-prod.yaml \
   -n vigil-prod
+
+# Update arbiter weights
+helm upgrade vigil-guard ./charts/vigil-guard \
+  -f values-prod.yaml \
+  --set arbiter.branchWeights.a=0.25 \
+  --set arbiter.branchWeights.b=0.40 \
+  --set arbiter.branchWeights.c=0.35 \
+  -n vigil-prod
 ```
 
-### Add Custom Configuration
+### Add Custom Configuration (v2.0.0)
+
 ```yaml
 # In templates/configmap-workflow.yaml
 apiVersion: v1
@@ -593,31 +963,15 @@ metadata:
   labels:
     {{- include "vigil-guard.labels" . | nindent 4 }}
 data:
+  # v2.0.0: unified_config.json v5.0.0 (patterns merged)
   unified_config.json: |
     {{- .Values.workflow.config.unified | toJson | nindent 4 }}
-  rules.config.json: |
-    {{- .Values.workflow.config.rules | toJson | nindent 4 }}
+  # v2.0.0: pii.conf (361 lines)
+  pii.conf: |
+    {{- .Values.workflow.config.pii | toJson | nindent 4 }}
 ```
 
-```yaml
-# In values.yaml
-workflow:
-  config:
-    unified:
-      normalization:
-        unicode_form: "NFKC"
-        max_iterations: 3
-      thresholds:
-        allow_max: 29
-        sanitize_light_max: 64
-    rules:
-      categories:
-        SQL_XSS_ATTACKS:
-          base_weight: 50
-          multiplier: 1.3
-```
-
-## Template Helpers (_helpers.tpl)
+## Template Helpers (_helpers.tpl) - v2.0.0
 
 ```yaml
 {{/*
@@ -629,6 +983,7 @@ helm.sh/chart: {{ include "vigil-guard.chart" . }}
 app.kubernetes.io/version: {{ .Values.global.vigilVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: vigil-guard
+pipeline-version: "2.0.0"
 {{- end }}
 
 {{/*
@@ -642,6 +997,10 @@ Generate service URL based on component
 {{- if eq $component "presidio" }}{{ $port = "5001" }}{{ end -}}
 {{- if eq $component "language-detector" }}{{ $port = "5002" }}{{ end -}}
 {{- if eq $component "clickhouse" }}{{ $port = "8123" }}{{ end -}}
+{{/* v2.0.0: 3-Branch services */}}
+{{- if eq $component "heuristics" }}{{ $port = "5005" }}{{ end -}}
+{{- if eq $component "semantic" }}{{ $port = "5006" }}{{ end -}}
+{{- if eq $component "prompt-guard" }}{{ $port = "8000" }}{{ end -}}
 http://{{ include "vigil-guard.fullname" $root }}-{{ $component }}:{{ $port }}
 {{- end }}
 
@@ -658,11 +1017,25 @@ Generate n8n webhook URL
 http://{{ include "vigil-guard.fullname" . }}-n8n:5678
 {{- end -}}
 {{- end }}
+
+{{/*
+v2.0.0: Generate arbiter configuration
+*/}}
+{{- define "vigil-guard.arbiterConfig" -}}
+branch_weights:
+  a: {{ .Values.arbiter.branchWeights.a }}
+  b: {{ .Values.arbiter.branchWeights.b }}
+  c: {{ .Values.arbiter.branchWeights.c }}
+block_threshold: {{ .Values.arbiter.blockThreshold }}
+sanitize_threshold: {{ .Values.arbiter.sanitizeThreshold }}
+failsafe_decision: {{ .Values.arbiter.failsafeDecision }}
+{{- end }}
 ```
 
-## Troubleshooting
+## Troubleshooting (v2.0.0)
 
 ### Chart Lint Errors
+
 ```bash
 # Fix common lint errors
 helm lint ./charts/vigil-guard --strict
@@ -674,8 +1047,9 @@ helm lint ./charts/vigil-guard --strict
 ```
 
 ### Dependency Issues
+
 ```bash
-# Update dependencies
+# Update dependencies (including v2.0.0 heuristics and semantic)
 helm dependency update ./charts/vigil-guard
 
 # Verify dependencies downloaded
@@ -686,23 +1060,36 @@ helm dependency list ./charts/vigil-guard
 ```
 
 ### Template Rendering Errors
+
 ```bash
 # Debug with --debug flag
 helm template vigil-guard ./charts/vigil-guard --debug 2>&1 | less
 
-# Check specific template
+# Check specific template (v2.0.0 heuristics)
 helm template vigil-guard ./charts/vigil-guard \
-  -s templates/deployment-n8n.yaml
+  -s charts/heuristics-service/templates/deployment.yaml
 
 # Validate with kubeval
 helm template vigil-guard ./charts/vigil-guard | kubeval --strict
 ```
 
-## Best Practices
+### Branch Service Issues
+
+```bash
+# Test branch service templates
+helm template vigil-guard ./charts/vigil-guard \
+  -s charts/heuristics-service/templates/deployment.yaml \
+  -s charts/semantic-service/templates/deployment.yaml
+
+# Verify branch weights sum to 1.0
+helm template vigil-guard ./charts/vigil-guard | grep -A5 "branch_weights"
+```
+
+## Best Practices (v2.0.0)
 
 1. **Use library charts** for common templates (_helpers.tpl)
 2. **Validate values** with values.schema.json
-3. **Version bump Chart.yaml** on every change
+3. **Version bump Chart.yaml** on every change (currently 2.0.0)
 4. **Test with helm test** hooks after deployment
 5. **Use --atomic** for production upgrades
 6. **Separate values files** per environment
@@ -710,13 +1097,28 @@ helm template vigil-guard ./charts/vigil-guard | kubeval --strict
 8. **Use existing secrets** instead of generating
 9. **Add NOTES.txt** with post-install instructions
 10. **Pin dependency versions** (avoid wildcards in prod)
+11. **Label branch services** with branch: a|b|c
+12. **Configure arbiter weights** in values.yaml (must sum to 1.0)
 
 ## Related Skills
-- `kubernetes-operations` - For K8s deployment details
-- `n8n-vigil-workflow` - For workflow configuration
+
+- `kubernetes-operations` - For K8s deployment details (11 services)
+- `n8n-vigil-workflow` - For 24-node workflow configuration
 - `docker-vigil-orchestration` - For Docker Compose reference
+- `clickhouse-grafana-monitoring` - For monitoring with branch columns
 
 ## References
-- Docker Compose: `docker-compose.yml`
+
+- Docker Compose: `docker-compose.yml` (11 services)
 - Service structure: `services/*/`
-- Current configs: `services/workflow/config/`
+- Workflow: `services/workflow/workflows/Vigil Guard v2.0.0.json` (24 nodes)
+- Config: `services/workflow/config/unified_config.json` (v5.0.0, 303 lines)
+- PII: `services/workflow/config/pii.conf` (361 lines)
+
+---
+
+**Last Updated:** 2025-12-09
+**Version:** v2.0.0
+**Architecture:** 3-Branch Parallel Detection (24 nodes)
+**Services:** 11 Docker containers (9 subcharts + 2 external)
+**Branch Weights:** A:30%, B:35%, C:35%

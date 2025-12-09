@@ -1,16 +1,18 @@
 ---
 name: vigil-security-patterns
-description: Security best practices and patterns for Vigil Guard development. Use when implementing authentication, handling secrets, validating input, preventing injection attacks, managing CORS, ensuring secure coding practices, or implementing Phase 3-4 security audit fixes (rate limiting, ReDoS protection, health checks).
-version: 1.6.11
+description: Security best practices and patterns for Vigil Guard v2.0.0 development. Use when implementing authentication, handling secrets, validating input, preventing injection attacks, managing CORS, ensuring secure coding practices, 3-branch detection security, or implementing security audit fixes.
+version: 2.0.0
 allowed-tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 
-# Vigil Guard Security Patterns
+# Vigil Guard Security Patterns (v2.0.0)
 
 ## Overview
-Comprehensive security best practices for developing and maintaining Vigil Guard's security-critical codebase.
+
+Comprehensive security best practices for developing and maintaining Vigil Guard's security-critical codebase with 3-branch parallel detection architecture.
 
 ## When to Use This Skill
+
 - Implementing authentication flows
 - Managing secrets and credentials
 - Validating user input
@@ -20,72 +22,296 @@ Comprehensive security best practices for developing and maintaining Vigil Guard
 - Implementing RBAC permissions
 - Secure session management
 - Code review for security issues
+- 3-branch service security (v2.0.0)
+
+## v2.0.0 Architecture Security
+
+### 3-Branch Detection Security
+
+```yaml
+11 Docker Services Security:
+  Core Services:
+    - clickhouse (data storage, port 8123)
+    - grafana (monitoring, port 3001)
+    - n8n (workflow engine, port 5678)
+
+  3-Branch Detection (v2.0.0):
+    - heuristics-service (Branch A, port 5005, 30% weight)
+    - semantic-service (Branch B, port 5006, 35% weight)
+    - prompt-guard-api (Branch C, port 8000, 35% weight)
+
+  PII Detection:
+    - presidio-pii-api (port 5001)
+    - language-detector (port 5002)
+
+  Web Interface:
+    - web-ui-backend (port 8787)
+    - web-ui-frontend (via proxy)
+    - proxy (Caddy, port 80)
+```
+
+### Branch Service Security Considerations
+
+```yaml
+Branch A (Heuristics - port 5005):
+  Risks:
+    - Pattern injection via crafted input
+    - DoS via complex regex (ReDoS)
+    - Config file manipulation
+  Mitigations:
+    - Pattern timeout limits (1000ms)
+    - unified_config.json validation
+    - Read-only config mount in Docker
+
+Branch B (Semantic - port 5006):
+  Risks:
+    - Model poisoning (if model updates allowed)
+    - Embedding manipulation attacks
+    - Resource exhaustion (GPU/CPU)
+  Mitigations:
+    - Fixed model (all-MiniLM-L6-v2)
+    - Input length limits
+    - Request timeout (2000ms)
+
+Branch C (LLM Guard - port 8000):
+  Risks:
+    - Prompt injection to bypass detection
+    - Model manipulation
+    - Resource exhaustion
+  Mitigations:
+    - Separate container isolation
+    - Request timeout (3000ms)
+    - No external network access
+```
+
+### Arbiter v2 Security
+
+```javascript
+// Weighted fusion security (v2.0.0)
+const WEIGHTS = {
+  branch_a: 0.30,  // Heuristics
+  branch_b: 0.35,  // Semantic
+  branch_c: 0.35   // LLM Guard
+};
+
+// Arbiter decision thresholds (cannot be manipulated via input)
+const THRESHOLDS = {
+  block: 70,        // Score >= 70 → BLOCK
+  sanitize: 30,     // Score 30-69 → SANITIZE
+  allow: 0          // Score < 30 → ALLOW
+};
+
+// Branch degradation handling (fail-safe)
+function arbiterDecision(scores) {
+  const validBranches = Object.entries(scores)
+    .filter(([_, score]) => score !== null);
+
+  if (validBranches.length === 0) {
+    // All branches failed → fail-safe to BLOCK
+    return { decision: 'BLOCK', reason: 'all_branches_degraded' };
+  }
+
+  // Recalculate weights for available branches
+  const totalWeight = validBranches
+    .reduce((sum, [branch]) => sum + WEIGHTS[branch], 0);
+
+  const normalizedScore = validBranches
+    .reduce((sum, [branch, score]) =>
+      sum + (score * WEIGHTS[branch] / totalWeight), 0);
+
+  return applyThresholds(normalizedScore);
+}
+```
 
 ## Authentication Security
 
 ### JWT Token Management
-Best practices for secure token handling in authentication flows.
+
+```typescript
+import jwt from 'jsonwebtoken';
+
+const SECRET = process.env.JWT_SECRET;  // 32+ chars from .env
+const EXPIRY = '24h';
+
+// Token generation with claims
+function generateToken(user: User): string {
+  return jwt.sign(
+    {
+      id: user.id,
+      username: user.username,
+      permissions: user.permissions,
+      iat: Math.floor(Date.now() / 1000)
+    },
+    SECRET,
+    { expiresIn: EXPIRY }
+  );
+}
+
+// Token verification with error handling
+function verifyToken(token: string): JwtPayload | null {
+  try {
+    return jwt.verify(token, SECRET) as JwtPayload;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      console.warn('Token expired');
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      console.warn('Invalid token');
+    }
+    return null;
+  }
+}
+```
 
 ### Password Security
-Always use bcrypt with 12 rounds for password hashing. Never log or store plaintext passwords.
+
+```typescript
+import bcrypt from 'bcrypt';
+
+const SALT_ROUNDS = 12;
+
+async function hashPassword(password: string): Promise<string> {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(password, hash);
+}
+
+// Password policy
+function validatePasswordStrength(password: string): boolean {
+  return password.length >= 8;  // Minimum 8 characters
+}
+```
 
 ### Permission Checks
-Server-side permission validation is required. Client-side checks can be bypassed.
+
+```typescript
+// Server-side RBAC middleware
+function requirePermission(permission: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!user.permissions.includes(permission)) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+
+    next();
+  };
+}
+
+// Usage
+app.post('/api/config/:filename',
+  authMiddleware,
+  requirePermission('can_view_configuration'),
+  configHandler
+);
+```
 
 ## Input Validation
 
 ### Path Traversal Prevention
-Whitelist allowed filenames and sanitize all user input.
+
+```typescript
+// Whitelist allowed filenames
+const ALLOWED_FILES = [
+  'unified_config.json',
+  'pii.conf',
+  'sections.json',
+  'variables.json'
+];
+
+function validateFilename(filename: string): boolean {
+  // Reject path traversal attempts
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return false;
+  }
+
+  // Whitelist check
+  return ALLOWED_FILES.includes(filename);
+}
+```
 
 ### SQL Injection Prevention
-Always use parameterized queries, never string concatenation.
+
+```typescript
+// ClickHouse parameterized queries
+async function queryEvents(sessionId: string) {
+  const client = getClickHouseClient();
+
+  // ✅ CORRECT: Parameterized query
+  const query = `
+    SELECT
+      timestamp,
+      original_input,
+      final_status,
+      branch_a_score,
+      branch_b_score,
+      branch_c_score,
+      arbiter_decision
+    FROM n8n_logs.events_processed
+    WHERE sessionId = {sessionId:String}
+    ORDER BY timestamp DESC
+    LIMIT 100
+  `;
+
+  return await client.query({
+    query,
+    query_params: { sessionId }
+  });
+}
+
+// SQLite parameterized queries
+const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
+const user = stmt.get(username);
+```
 
 ### XSS Prevention
-React auto-escapes by default. Use DOMPurify for HTML sanitization.
+
+```typescript
+// React auto-escapes JSX by default
+// For HTML content, use DOMPurify
+import DOMPurify from 'dompurify';
+
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
+    ALLOWED_ATTR: ['href', 'target']
+  });
+}
+```
 
 ## Secret Management
 
 ### Environment Variables
-Store secrets in .env file, auto-generate during installation using openssl.
+
+```bash
+# .env (auto-generated by install.sh)
+CLICKHOUSE_PASSWORD=$(openssl rand -base64 32)
+GF_SECURITY_ADMIN_PASSWORD=$(openssl rand -base64 32)
+SESSION_SECRET=$(openssl rand -base64 64)
+JWT_SECRET=$(openssl rand -base64 32)
+WEB_UI_ADMIN_PASSWORD=$(openssl rand -base64 24)
+```
 
 ### Secret Masking in UI
-Display masked values showing only first and last character.
 
-## CORS Configuration
+```typescript
+function maskSecret(value: string): string {
+  if (value.length <= 2) return '***';
+  return value[0] + '*'.repeat(value.length - 2) + value[value.length - 1];
+}
 
-Restrict origin to localhost in development, specific domains in production.
+// Example: "mysecret123" → "m*********3"
+```
 
-## Audit Logging
+## Rate Limiting (v2.0.0)
 
-Track all config changes and authentication events with timestamps and usernames.
+### Authentication Endpoints
 
-## Rate Limiting
-
-Implement rate limiting on authentication endpoints to prevent brute force attacks.
-
-## ETag Concurrency Control
-
-Use MD5 hash of content as ETag to prevent concurrent edit conflicts.
-
-## Session Security
-
-Implement session timeouts and logout on inactivity.
-
-## RBAC Implementation
-
-Granular permissions with last admin protection to prevent lockout.
-
-## Common Vulnerabilities
-
-OWASP Top 10 coverage with mitigations for broken access control, cryptographic failures, and injection attacks.
-
-## Recent Security Fixes (v1.8.1 - Phase 3-4 Audit)
-
-### Phase 2.1: Rate Limiting Implementation
-
-**Library:** express-rate-limit ^8.1.0
-
-**Authentication Endpoints (Brute Force Protection):**
 ```typescript
 import rateLimit from 'express-rate-limit';
 
@@ -101,7 +327,8 @@ app.post('/api/auth/login', authLimiter, loginHandler);
 app.post('/api/auth/change-password', authLimiter, changePasswordHandler);
 ```
 
-**General API (DoS Protection):**
+### General API Protection
+
 ```typescript
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,  // 1 minute
@@ -112,34 +339,40 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 ```
 
-**Best Practices:**
-- Use different limits for sensitive vs general endpoints
-- Return 429 status code (Too Many Requests)
-- Don't leak information in error messages
-- Consider IP-based vs user-based limiting
+### Branch Service Proxy Protection
 
-### Phase 2.2: ReDoS Protection
+```typescript
+const branchLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minute
+  max: 30               // 30 analysis requests per minute
+});
 
-**Catastrophic Backtracking Prevention:**
+app.use('/api/analyze/', branchLimiter);
+```
 
-**Reviewed:** 829-line rules.config.json for unsafe regex patterns
+## ReDoS Protection (v2.0.0)
 
-**Timeout Limits:**
+### Pattern Timeout Limits
+
 ```javascript
-// Pattern_Matching_Engine node (n8n workflow)
+// Heuristics service pattern matching
 const PATTERN_TIMEOUT_MS = 1000; // 1 second max per pattern
 
-try {
-  const match = text.match(new RegExp(pattern));
-} catch (error) {
-  if (error.message.includes('timeout')) {
-    console.warn('Pattern timeout exceeded:', pattern);
-    // Skip pattern, continue processing
-  }
+async function matchPattern(text, pattern) {
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Pattern timeout')), PATTERN_TIMEOUT_MS)
+  );
+
+  const matchPromise = new Promise(resolve =>
+    resolve(new RegExp(pattern).test(text))
+  );
+
+  return Promise.race([matchPromise, timeoutPromise]);
 }
 ```
 
-**Safe Regex Patterns:**
+### Safe Regex Patterns
+
 ```javascript
 // ❌ UNSAFE: Catastrophic backtracking
 const unsafe = /^(a+)+$/;
@@ -154,116 +387,36 @@ const unsafe2 = /(x+x+)+y/;
 const safe2 = /x+y/;
 ```
 
-**Testing for ReDoS:**
+### ReDoS Testing
+
 ```bash
 # Use redos-detector tool
 npm install -g redos-detector
 
 # Test pattern
 redos-detector '^(a+)+$'
+
+# Scan unified_config.json patterns
+cat services/workflow/config/unified_config.json | \
+  jq -r '.categories[].patterns[]' | \
+  xargs -I {} redos-detector '{}'
 ```
 
-### Phase 2.5: Presidio Exception Handling
+## CORS Configuration
 
-**Graceful Degradation:**
-```javascript
-// PII_Redactor_v2 node
-try {
-  const presidioResponse = await axios.post('http://vigil-presidio-pii:5001/analyze', {
-    text: inputText,
-    language: 'en',
-    entities: ['EMAIL', 'PHONE', 'CREDIT_CARD']
-  }, { timeout: 3000 });
+### Development
 
-  return presidioResponse.data;
-} catch (error) {
-  console.error('Presidio service unavailable, falling back to regex');
-
-  // Automatic fallback to regex patterns
-  return regexPiiDetection(inputText);
-}
-```
-
-**Health Check Status Codes:**
 ```typescript
-// services/presidio-pii-api/app.py
-@app.route('/health', methods=['GET'])
-def health():
-    try:
-        # Test spaCy models loaded
-        nlp_en('test')
-        nlp_pl('test')
-        return jsonify({'status': 'healthy'}), 200
-    except Exception as e:
-        return jsonify({
-            'status': 'degraded',
-            'error': str(e)
-        }), 503  # Service Unavailable
-```
-
-### Phase 2.6: Web UI Health Check Improvements
-
-**Proper Status Codes:**
-```typescript
-// services/web-ui/backend/src/server.ts
-app.get('/health', (req, res) => {
-  // Check critical dependencies
-  const clickhouseOk = await testClickHouseConnection();
-
-  if (clickhouseOk) {
-    res.status(200).json({ status: 'healthy' });
-  } else {
-    res.status(503).json({
-      status: 'degraded',
-      message: 'ClickHouse connection failed'
-    });
-  }
-});
-```
-
-**Monitoring Integration:**
-```bash
-# Docker Compose health check
-healthcheck:
-  test: ["CMD", "wget", "--spider", "-q", "http://localhost:8787/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 10s
-```
-
-### Phase 3-4: Version Consistency
-
-**Docker Image Tags:**
-- Pin SHA256 digests (not just version tags)
-- Unified pipeline_version across all services
-- Semantic versioning enforcement
-
-**Example:**
-```yaml
-# docker-compose.yml
-services:
-  clickhouse:
-    image: clickhouse/clickhouse-server:24.1@sha256:44caeed7c81f7934...
-
-  presidio-pii-api:
-    image: vigil-presidio-pii:1.6.11  # Matches workflow version
-```
-
-### CORS Configuration Fixes
-
-**Localhost Development:**
-```typescript
-// Backend: services/web-ui/backend/src/server.ts
 app.use(cors({
   origin: /^http:\/\/localhost(:\d+)?$/,  // Any localhost port
-  credentials: true,                       // Allow cookies
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 ```
 
-**Production:**
+### Production
+
 ```typescript
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 app.use(cors({
@@ -278,42 +431,154 @@ app.use(cors({
 }));
 ```
 
-### Security Testing Tools
+## Audit Logging
 
-**Integrated:**
-- TruffleHog (secret scanning in CI/CD)
-- Vitest (58+ security test cases)
-- Manual penetration testing (OWASP Top 10)
+```typescript
+function auditLog(action: string, username: string, details: object) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    action,
+    username,
+    details: JSON.stringify(details),
+    ip: req.ip
+  };
 
-**Coverage:**
-- ✅ Broken Access Control (RBAC, last admin protection)
-- ✅ Cryptographic Failures (bcrypt, JWT, auto-generated secrets)
-- ✅ Injection Attacks (parameterized queries, input validation)
-- ✅ Insecure Design (defense in depth, fail-secure)
-- ✅ Security Misconfiguration (defaults secure, audit logging)
-- ✅ Vulnerable Components (pinned versions, SHA digests)
-- ✅ Identification & Authentication (JWT, session management, MFA-ready)
-- ✅ Software & Data Integrity (ETag, audit trail, backups)
-- ✅ Security Logging (audit.log, ClickHouse, no sensitive data)
-- ✅ Server-Side Request Forgery (URL validation, allowlist)
+  fs.appendFileSync('config/audit.log', JSON.stringify(entry) + '\n');
+}
 
-## Code Review Checklist
+// Usage
+auditLog('config_update', req.user.username, {
+  file: 'unified_config.json',
+  changes: diff(oldConfig, newConfig)
+});
+```
 
-- No hardcoded secrets
-- Input validation present
-- SQL queries parameterized
-- Permissions checked server-side
-- Passwords hashed with bcrypt
-- CORS configured properly
-- Audit logging implemented
-- ETag used for concurrent edits
+## Health Check Security (v2.0.0)
+
+### Branch Service Health Checks
+
+```typescript
+// GET /api/health/branches
+app.get('/api/health/branches',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const healthChecks = await Promise.allSettled([
+        fetch('http://heuristics-service:5005/health', { signal: AbortSignal.timeout(2000) }),
+        fetch('http://semantic-service:5006/health', { signal: AbortSignal.timeout(2000) }),
+        fetch('http://prompt-guard-api:8000/health', { signal: AbortSignal.timeout(2000) })
+      ]);
+
+      const results = {
+        branch_a: {
+          name: 'Heuristics',
+          port: 5005,
+          healthy: healthChecks[0].status === 'fulfilled' && healthChecks[0].value.ok
+        },
+        branch_b: {
+          name: 'Semantic',
+          port: 5006,
+          healthy: healthChecks[1].status === 'fulfilled' && healthChecks[1].value.ok
+        },
+        branch_c: {
+          name: 'LLM Guard',
+          port: 8000,
+          healthy: healthChecks[2].status === 'fulfilled' && healthChecks[2].value.ok
+        }
+      };
+
+      const allHealthy = Object.values(results).every(b => b.healthy);
+      res.status(allHealthy ? 200 : 503).json(results);
+    } catch (error) {
+      res.status(500).json({ error: 'Health check failed' });
+    }
+  }
+);
+```
+
+### Docker Health Checks
+
+```yaml
+# docker-compose.yml
+healthcheck:
+  test: ["CMD", "wget", "--spider", "-q", "http://localhost:8787/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+```
+
+## Security Testing
+
+### OWASP Top 10 Coverage
+
+```yaml
+Coverage (v2.0.0):
+  - ✅ Broken Access Control (RBAC, last admin protection)
+  - ✅ Cryptographic Failures (bcrypt, JWT, auto-generated secrets)
+  - ✅ Injection Attacks (parameterized queries, input validation)
+  - ✅ Insecure Design (defense in depth, fail-secure)
+  - ✅ Security Misconfiguration (defaults secure, audit logging)
+  - ✅ Vulnerable Components (pinned versions, SHA digests)
+  - ✅ Identification & Authentication (JWT, session management)
+  - ✅ Software & Data Integrity (ETag, audit trail, backups)
+  - ✅ Security Logging (audit.log, ClickHouse, no sensitive data)
+  - ✅ Server-Side Request Forgery (URL validation, allowlist)
+```
+
+### Security Tools
+
+```bash
+# TruffleHog secret scanning
+trufflehog filesystem --directory . --only-verified
+
+# npm audit
+cd services/web-ui/backend && npm audit
+
+# Vitest security tests
+cd services/workflow && npm test -- security
+```
+
+## Code Review Checklist (v2.0.0)
+
+```markdown
+## Security Review
+
+- [ ] No hardcoded secrets
+- [ ] Input validation present
+- [ ] SQL queries parameterized
+- [ ] Permissions checked server-side
+- [ ] Passwords hashed with bcrypt (12 rounds)
+- [ ] CORS configured properly
+- [ ] Audit logging implemented
+- [ ] ETag used for concurrent edits
+
+## 3-Branch Security (v2.0.0)
+
+- [ ] Branch timeouts configured (A:1000ms, B:2000ms, C:3000ms)
+- [ ] Degradation handled (fail-safe to BLOCK)
+- [ ] Arbiter thresholds not exposed to input
+- [ ] Branch services isolated (no external network)
+- [ ] unified_config.json validated before loading
+```
 
 ## Related Skills
+
 - `react-tailwind-vigil-ui` - Frontend security patterns
-- `n8n-vigil-workflow` - Sanitization implementation
-- `docker-vigil-orchestration` - Environment variable management
+- `n8n-vigil-workflow` - 3-branch workflow security
+- `docker-vigil-orchestration` - 11 service security
+- `express-api-developer` - API security patterns
 
 ## References
+
 - OWASP Top 10: https://owasp.org/www-project-top-ten/
 - Security docs: `docs/SECURITY.md`
 - Auth docs: `docs/AUTHENTICATION.md`
+- unified_config.json: `services/workflow/config/unified_config.json` (303 lines, v5.0.0)
+
+---
+
+**Last Updated:** 2025-12-09
+**Version:** v2.0.0
+**Architecture:** 3-Branch Parallel Detection
+**Services:** 11 Docker containers
