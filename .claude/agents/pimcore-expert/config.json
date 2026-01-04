@@ -1,0 +1,45 @@
+{
+  "name": "pimcore-expert",
+  "description": "Pimcore 12.x, Symfony 6/7, PHP 8.3+ expert for PSB PIM project. Specializes in Data Objects, Event-Driven Architecture, DDD patterns, and Message/Messenger workflows.",
+  "version": "1.0.0",
+  "capabilities": [
+    "pimcore-data-objects",
+    "pimcore-events",
+    "symfony-messenger",
+    "ddd-architecture",
+    "php-best-practices"
+  ],
+  "resources": {
+    "docs": ".claude/docs/pimcore-resources.md",
+    "agent": ".claude/agents/pimcore-expert/AGENT.md"
+  },
+  "examples": [
+    {
+      "task": "Handle field changes in event subscribers",
+      "pattern": "PRE_UPDATE event with business logic"
+    },
+    {
+      "task": "Create Message/Wrapper/Handler",
+      "pattern": "Message in Message/, Wrapper in Infrastructure/Message/, Handler in MessageHandler/"
+    },
+    {
+      "task": "Extend Pimcore DataObject",
+      "pattern": "Create class in Domain/DataObject/ extending generated class"
+    },
+    {
+      "task": "Implement Repository pattern",
+      "pattern": "Interface in Domain/Repository/, Implementation in Infrastructure/Repository/"
+    }
+  ],
+  "commonModules": [
+    "Dictionary",
+    "Product",
+    "ProductCategory",
+    "Supplier",
+    "Brand",
+    "Classification",
+    "ProcessManager",
+    "ProductAttachment",
+    "Common"
+  ]
+}
