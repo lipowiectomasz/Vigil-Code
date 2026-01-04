@@ -1,0 +1,42 @@
+{
+  "name": "supabase-expert",
+  "description": "Supabase expert specializing in database migrations, Edge Functions, Row Level Security (RLS), PostgreSQL, authentication, and storage.",
+  "version": "1.0.0",
+  "capabilities": [
+    "supabase-migrations",
+    "edge-functions-deno",
+    "row-level-security",
+    "postgresql-advanced",
+    "supabase-auth",
+    "storage-buckets"
+  ],
+  "resources": {
+    "docs": ".claude/docs/supabase-resources.md",
+    "agent": ".claude/agents/supabase-expert/AGENT.md"
+  },
+  "examples": [
+    {
+      "task": "Create idempotent database migration",
+      "pattern": "YYYYMMDDHHMMSS_{descriptive_name}.sql with IF NOT EXISTS"
+    },
+    {
+      "task": "Build Edge Function with database access",
+      "pattern": "Deno TypeScript with CORS, Supabase client, error handling"
+    },
+    {
+      "task": "Add RLS policies for table security",
+      "pattern": "USING clause for reads, WITH CHECK for writes"
+    },
+    {
+      "task": "Create database function/trigger",
+      "pattern": "Separate migration file with GRANT permissions"
+    }
+  ],
+  "commonPatterns": [
+    "Migrations in supabase/migrations/",
+    "Edge Functions in supabase/volumes/functions/",
+    "One table per migration file",
+    "RLS policies in separate files",
+    "Idempotent operations (IF NOT EXISTS, ON CONFLICT)"
+  ]
+}

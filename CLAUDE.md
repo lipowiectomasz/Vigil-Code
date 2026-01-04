@@ -144,7 +144,7 @@ Co-Authored-By: Claude <...>   # ← FORBIDDEN
 ✅ NEW: Agents are technology experts + read project context from files
 ```
 
-**Available Technology Experts (17):**
+**Available Technology Experts (18):**
 
 | Expert | Technology | Use For |
 |--------|------------|---------|
@@ -164,6 +164,7 @@ Co-Authored-By: Claude <...>   # ← FORBIDDEN
 | `helm-expert` | Helm | Charts, releases, templating |
 | `nats-expert` | NATS | Messaging, JetStream, queues |
 | `redis-expert` | Redis | Caching, rate limiting |
+| `supabase-expert` | Supabase | Migrations, Edge Functions, RLS, PostgreSQL |
 | `pimcore-expert` | Pimcore + Symfony | Data Objects, DDD, Event-Driven, Messenger |
 | `code-audit-expert` | Code Auditing | Quality assessment, tech debt, reviews |
 
@@ -183,6 +184,7 @@ Is it multi-step OR involves multiple technologies?
             │         • n8n question → n8n-expert
             │         • Testing task → vitest-expert
             │         • Security audit → security-expert
+            │         • Supabase task → supabase-expert
             │         • Pimcore/Symfony task → pimcore-expert
             │
             └─ NO → Simple task (single file edit)
@@ -575,6 +577,7 @@ const enResults = await analyzeEnglish(text);
    - Performance → `clickhouse-expert`
    - Security issues → `security-expert`
    - Docker problems → `docker-expert`
+   - Supabase issues → `supabase-expert`
    - Pimcore/Symfony issues → `pimcore-expert`
 
 2. **Check logs in order:**
@@ -743,7 +746,7 @@ The agent system has been redesigned from project-specific agents to **universal
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Available Technology Experts (17)
+### Available Technology Experts (18)
 
 | Expert | Technology | Specialization |
 |--------|------------|----------------|
@@ -763,6 +766,7 @@ The agent system has been redesigned from project-specific agents to **universal
 | `helm-expert` | Helm | Charts, releases, values, templating |
 | `nats-expert` | NATS | JetStream, streams, consumers, queues |
 | `redis-expert` | Redis | Caching, rate limiting, sessions |
+| `supabase-expert` | Supabase | Migrations, Edge Functions, RLS, PostgreSQL |
 | `pimcore-expert` | Pimcore/Symfony | Data Objects, DDD, Event-Driven, Messenger |
 | `code-audit-expert` | Code Auditing | Quality assessment, tech debt, reviews |
 
@@ -833,7 +837,7 @@ Multi-step tasks use `.claude/state/progress.json`:
 - ❌ `master/`, `master-orchestrator/` directories
 
 **Added (v3.0):**
-- ✅ 17 technology experts (in `.claude/agents/`)
+- ✅ 18 technology experts (in `.claude/agents/`)
 - ✅ Documentation protocol (WebFetch/WebSearch)
 - ✅ Progress file for state (`.claude/state/progress.json`)
 - ✅ Core protocols document (`.claude/core/protocols.md`)
@@ -864,7 +868,7 @@ Multi-step tasks use `.claude/state/progress.json`:
 ```
 vigil-guard/
 ├── .claude/                         # ⚠️ IN .gitignore, NEVER commit
-│   ├── agents/ (17 experts)        # Technology experts (orchestrator + 16 specialists)
+│   ├── agents/ (18 experts)        # Technology experts (orchestrator + 17 specialists)
 │   │   ├── orchestrator/           # Task routing & coordination
 │   │   ├── n8n-expert/             # n8n automation
 │   │   ├── react-expert/           # React development
@@ -877,6 +881,7 @@ vigil-guard/
 │   │   ├── git-expert/             # Version control
 │   │   ├── python-expert/          # Python development
 │   │   ├── tailwind-expert/        # CSS styling
+│   │   ├── supabase-expert/        # Supabase + PostgreSQL
 │   │   └── pimcore-expert/         # Pimcore + Symfony
 │   ├── core/                       # Shared protocols
 │   │   └── protocols.md            # Progress file, docs, handoff protocols
@@ -1528,6 +1533,7 @@ For tasks requiring multiple experts, orchestrator creates progress.json:
 | `git-expert` | Version control, branching, PRs |
 | `python-expert` | Flask APIs, data processing |
 | `tailwind-expert` | Styling, responsive design |
+| `supabase-expert` | Database migrations, Edge Functions, RLS policies, PostgreSQL |
 | `pimcore-expert` | Pimcore Data Objects, Symfony events, DDD, Messenger workflows |
 
 ### Key Files
@@ -1586,6 +1592,7 @@ npm test             # Run tests (in services/workflow/)
 | Helm | `helm-expert` | helm.sh/docs |
 | Messaging | `nats-expert` | docs.nats.io |
 | Caching | `redis-expert` | redis.io/docs |
+| Supabase | `supabase-expert` | supabase.com/docs |
 | Pimcore/PHP | `pimcore-expert` | docs.pimcore.com/platform/ |
 
 **Full expert docs:** `.claude/agents/[expert-name]/AGENT.md`
