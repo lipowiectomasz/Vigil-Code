@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blue.svg)](https://claude.ai/code)
-[![Experts: 17](https://img.shields.io/badge/Experts-17-green.svg)](#technology-experts-17)
+[![Experts: 18](https://img.shields.io/badge/Experts-18-green.svg)](#technology-experts-18)
 [![Skills: 22](https://img.shields.io/badge/Skills-22-orange.svg)](#skills-domain-context)
 [![Version: 3.2](https://img.shields.io/badge/Version-3.2-brightgreen.svg)]()
 
@@ -157,7 +157,7 @@ Claude Code:
 
 ---
 
-## Technology Experts (17)
+## Technology Experts (18)
 
 Each expert is a `.claude/agents/[name]/AGENT.md` file with YAML frontmatter + Markdown content.
 
@@ -179,6 +179,7 @@ Each expert is a `.claude/agents/[name]/AGENT.md` file with YAML frontmatter + M
 | `helm-expert` | sonnet | helm, chart, values.yaml | Charts, releases, templating |
 | `nats-expert` | sonnet | nats, jetstream, stream | Messaging, queues, pub/sub |
 | `redis-expert` | sonnet | redis, cache, rate limit | Caching, sessions, rate limiting |
+| `pimcore-studio-expert` | sonnet | pimcore studio, studio ui | Studio UI, plugins, React extensions |
 | `code-audit-expert` | **opus** | audit, code quality, review | Code auditing, quality assessment |
 
 ---
